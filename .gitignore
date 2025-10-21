@@ -1,1 +1,11 @@
+.idea/
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+# Data/artifacts
+chroma_db/
+data/raw/
+.cache/
 .DS_Store

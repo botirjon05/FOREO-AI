@@ -1,0 +1,7 @@
+streamlit
+transformers>=4.41
+torch
+sentence-transformers
+chromadb
+safetensors
+accelerate
