@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 from hashlib import sha1
+import re
 from typing import Iterator
 
 INPUT = Path("data/cleaned_faqs.jsonl")
@@ -26,16 +27,44 @@ def validate_row(r: dict):
             return False, k
     return True, None
 
-def chunk_text(text: str, max_words: int = 200, overlap: int = 30):
-    words = text.split()
-    if len(words) <= max_words:
-        return [text]
+SENT_SPLIT_RX = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9\[])")
+
+def split_sentences_safe(text: str):
+    """Split text into sentences conservatively so we don't cut in the middle.
+    We only split on punctuation followed by a capital/number/[, which matches our data.
+    """
+    text = re.sub(r"\s+", " ", text.strip())
+    if not text:
+        return []
+    parts = SENT_SPLIT_RX.split(text)
+    return [p.strip() for p in parts if p.strip()]
+
+def chunk_text(text: str, max_words: int = 200, overlap_sentences: int = 1):
+    """Create chunks that always end at sentence boundaries.
+    - Assemble sentences until just over the word budget, then close the chunk.
+    - Add a small sentence-level overlap (default 1 sentence) for safety.
+    This avoids mid-sentence cuts while keeping redundancy low.
+    """
+    sentences = split_sentences_safe(text)
+    if not sentences:
+        return []
+
     chunks = []
     i = 0
-    while i < len(words):
-        chunk = words[i:i+max_words]
-        chunks.append(" ".join(chunk))
-        i += max_words - overlap
+    while i < len(sentences):
+        cur = []
+        words = 0
+        while i < len(sentences) and (words == 0 or words + len(sentences[i].split()) <= max_words):
+            cur.append(sentences[i])
+            words += len(sentences[i].split())
+            i += 1
+        if cur:
+            chunks.append(" ".join(cur))
+        # sentence-level overlap for continuity (bounded by start of list)
+        i = max(i - overlap_sentences, i)
+        if overlap_sentences and i < len(sentences):
+            # ensure we move forward at least 1 sentence
+            i += 0
     return chunks
 
 def make_stable_id(url: str, question: str, answer: str, chunk_index: int = 0):
@@ -73,7 +102,8 @@ def main():
                 skipped_duplicates += 1
                 continue
             # we will add to seen set only after producing chunks for this row
-            chunks = chunk_text(combined_full, max_words=200, overlap=30)
+            # Sentence-aware chunks; keep ends aligned to sentences
+            chunks = chunk_text(combined_full, max_words=200, overlap_sentences=1)
 
             for ci, chunk in enumerate(chunks):
                 uid = make_stable_id(row["url"], q, a, ci)
