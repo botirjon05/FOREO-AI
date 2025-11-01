@@ -15,8 +15,6 @@ from rag_gemma import (
     best_question_similarity,
     extractive_answer,
     maybe_paraphrase,
-    to_sentences,
-    parse_qa,
     GEMMA_SMALL_ID,
     OFFTOPIC_SIM_THRESHOLD,
     OFF_TOPIC_MESSAGE,
@@ -25,6 +23,9 @@ from rag_gemma import (
     EMBED_MODEL_NAME,
     load_gemma_small,
 )
+
+from intent_detection import classify_intent, extract_device_type, simple_extract_slots, needs_clarification, extract_country, extract_region
+from troubleshooting import get_troubleshooting_steps
 
 # ----------------------------------------
 # ----------- Streamlit Setup ------------
@@ -37,7 +38,7 @@ st.set_page_config(
 )
 
 # ---- Brand assets (optional) ----
-LOGO_LOCAL_PATH = "assets/foreo_logo.png"  # put your logo here if you have it
+LOGO_LOCAL_PATH = "assets/foreo_logo.png"
 LOGO_URL_ENV = os.environ.get("FOREO_LOGO_URL", "").strip()
 
 # ----------------------------------------
@@ -53,19 +54,12 @@ body, .stApp {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
 }
 
-
-
-
-
 /* Chat container (glass card) */
 .chat-wrap {
   
   margin: 26px auto 90px auto;
   background: rgba(255,255,255,0.72);
   backdrop-filter: blur(8px);
- 
-  
-  
   
 }
 
@@ -156,16 +150,13 @@ body, .stApp {
 """, unsafe_allow_html=True)
 
 
-
-
-
 # ----------------------------------------
 # ---------- Initialize state ------------
 # ----------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant",
-         "content": "👋Hi! I’m your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."}
+         "content": "👋Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."}
     ]
 
 device = pick_device()
@@ -216,41 +207,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Load logo once and reuse for both top logo and header
 import base64
-with open("assets/foreo_logo.png", "rb") as f:
-    b64_logo = base64.b64encode(f.read()).decode()
-
-st.markdown(
-    f"""
-<div class="logo-top">
-  <img src="data:image/png;base64,{b64_logo}" alt="FOREO Logo">
-</div>
-""",
-    unsafe_allow_html=True
-)
-
-
-# Header with logo (local path or URL), fallback to emoji
 logo_rendered = False
-logo_html = ""
-if os.path.exists(LOGO_LOCAL_PATH):
-    # Use base64 to embed image inline
-    import base64
-    with open(LOGO_LOCAL_PATH, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-    logo_html = f'<img src="data:image/png;base64,{b64}" width="30" height="30" alt="FOREO" />'
-    logo_rendered = True
-elif LOGO_URL_ENV:
-    logo_html = f'<img src="{LOGO_URL_ENV}" width="30" height="30" alt="FOREO" />'
-    logo_rendered = True
+b64_logo = None
+header_logo_html = "💗"
 
+if os.path.exists(LOGO_LOCAL_PATH):
+    with open(LOGO_LOCAL_PATH, "rb") as f:
+        b64_logo = base64.b64encode(f.read()).decode()
+    logo_rendered = True
+    header_logo_html = f'<img src="data:image/png;base64,{b64_logo}" width="30" height="30" alt="FOREO" />'
+elif LOGO_URL_ENV:
+    logo_rendered = True
+    header_logo_html = f'<img src="{LOGO_URL_ENV}" width="30" height="30" alt="FOREO" />'
+
+# Display top logo (large)
+if b64_logo:
+    st.markdown(
+        f"""
+    <div class="logo-top">
+      <img src="data:image/png;base64,{b64_logo}" alt="FOREO Logo">
+    </div>
+    """,
+        unsafe_allow_html=True
+    )
+
+# Header with logo
 st.markdown(
     f"""
 <div class="header">
-  <div class="logo-wrap">{logo_html if logo_rendered else "💗"}</div>
+  <div class="logo-wrap">{header_logo_html}</div>
   <div>
     <div class="title">FOREO AI Assistant</div>
-    <div class="sub">RAG + Gemma-3-270M • Chroma vector store</div>
+    <div class="sub">RAG + Reasoning Loop + Gemma-3-270M</div>
   </div>
 </div>
 """,
@@ -279,23 +269,133 @@ if q:
             unsafe_allow_html=True
         )
 
-    # RAG pipeline
-    t0 = time.time()
-    docs, metas = retrieve_top_k(coll, embedder, q, 3)
-    t1 = time.time()
-
-    best_sim = best_question_similarity(embedder, q, docs)
-    if best_sim < OFFTOPIC_SIM_THRESHOLD:
-        bot_reply = OFF_TOPIC_MESSAGE
+    # REASONING LOOP with clarification support
+    # Step 1: Check if we're in a clarification flow FIRST
+    if st.session_state.get("reasoning_state"):
+        # We're continuing a clarification flow - merge with existing context
+        old_intent = st.session_state.get("reasoning_state", {}).get("intent")
+        old_slots = st.session_state.get("reasoning_state", {}).get("slots", {})
+        
+        # Extract any additional info from the current query (country, device, issue, etc.)
+        country = extract_country(q)
+        region = extract_region(q)
+        device = extract_device_type(q)
+        
+        # Extract issue type
+        q_lower = q.lower()
+        if any(kw in q_lower for kw in ["charge", "charging", "battery", "power"]):
+            issue = "charging"
+        elif any(kw in q_lower for kw in ["turn on", "won't turn", "wont turn", "start", "power on"]):
+            issue = "not_turning_on"
+        elif any(kw in q_lower for kw in ["clean", "cleaning", "wash"]):
+            issue = "cleaning"
+        elif any(kw in q_lower for kw in ["button", "buttons"]):
+            issue = "buttons"
+        elif any(kw in q_lower for kw in ["weak", "slow", "performance"]):
+            issue = "performance"
+        else:
+            issue = None
+        
+        # Start with old slots and update with new info
+        slots = old_slots.copy()
+        
+        # Add to slots if found
+        if country:
+            slots["country"] = country
+        if region:
+            slots["region"] = region
+        if device:
+            slots["device_type"] = device
+        if issue:
+            slots["issue"] = issue
+        
+        # Use the original intent
+        intent = old_intent
     else:
-        ans = extractive_answer(q, docs)
-        if model is not None and ans not in {"Not enough information.", ""}:
-            try:
-                ans = maybe_paraphrase(tokenizer, model, device, ans)
-            except Exception:
-                pass
-        bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+        # Not in clarification - classify intent and extract slots normally
+        intent, confidence = classify_intent(q)
+        slots = simple_extract_slots(q)
+    
+    # Step 3: Check if clarification is needed
+    needs_clar, clarification_q = needs_clarification(intent, slots)
+    
+    if needs_clar:
+        # Store current state for next turn
+        st.session_state["reasoning_state"] = {
+            "intent": intent,
+            "slots": slots
+        }
+        bot_reply = f"To help you better, {clarification_q}"
+    else:
+        # All info gathered - provide answer
+        # Check if we just got a clarification response
+        was_in_clarification = st.session_state.get("reasoning_state") is not None
+        is_short_query = len(q.split()) <= 3
+        is_country_response = was_in_clarification and (slots.get("country") or slots.get("region")) and intent in ["warranty", "orders"]
+        
+        if was_in_clarification and (is_short_query or is_country_response):
+            # This is a clarification response - use the intent to construct a proper query
+            if intent == "warranty":
+                augmented_query = "warranty information"
+                if slots.get("country"):
+                    augmented_query = f"{augmented_query} in {slots.get('country')}"
+            elif intent == "orders":
+                augmented_query = "order and shipping information"
+                if slots.get("country"):
+                    augmented_query = f"{augmented_query} in {slots.get('country')}"
+                elif slots.get("region"):
+                    augmented_query = f"{augmented_query} in {slots.get('region')}"
+            else:
+                # For device-related clarifications, just use the original query
+                augmented_query = q
+        else:
+            # Normal query - use as is
+            augmented_query = q
+            
+            # Augment query with country if available and relevant
+            if intent in ["warranty", "orders"]:
+                if slots.get("country"):
+                    augmented_query = f"{augmented_query} in {slots.get('country')}"
+                elif slots.get("region"):
+                    augmented_query = f"{augmented_query} in {slots.get('region')}"
+        
+        # For troubleshooting intent, use troubleshooting flow
+        if intent == "troubleshooting" and slots.get("issue"):
+            bot_reply = get_troubleshooting_steps(slots)
+        # For cleaning intent, use troubleshooting flow
+        elif intent == "cleaning" and slots.get("issue"):
+            bot_reply = get_troubleshooting_steps(slots)
+        # For other intents, use RAG pipeline
+        else:
+            # Charging intent can also use troubleshooting guidance
+            if intent == "charging":
+                if not slots.get("issue"):
+                    slots["issue"] = "charging"
+                bot_reply = get_troubleshooting_steps(slots)
+            else:
+                t0 = time.time()
+                docs, metas = retrieve_top_k(coll, embedder, augmented_query, 3)
+                t1 = time.time()
 
+                best_sim = best_question_similarity(embedder, augmented_query, docs)
+                if best_sim < OFFTOPIC_SIM_THRESHOLD:
+                    bot_reply = OFF_TOPIC_MESSAGE
+                else:
+                    ans = extractive_answer(augmented_query, docs)
+                    if model is not None and ans not in {"Not enough information.", ""}:
+                        try:
+                            ans = maybe_paraphrase(tokenizer, model, device, ans)
+                        except Exception:
+                            pass
+                    bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+
+        # Clear the clarification state only if we didn't go off-topic
+        if bot_reply != OFF_TOPIC_MESSAGE:
+            st.session_state["reasoning_state"] = None
+
+    # Safety fallback: if bot_reply is missing/empty, guide the user
+    if not bot_reply or not bot_reply.strip():
+        bot_reply = "I didn't catch that. Could you rephrase or provide a bit more detail?"
     # Replace thinking bubble with bot reply
     thinking.empty()
     st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)

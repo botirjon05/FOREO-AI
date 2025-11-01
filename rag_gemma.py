@@ -49,6 +49,68 @@ def pick_device() -> torch.device:
 def normalize_spaces(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "").strip())
 
+def canonicalize_sentence(s: str) -> str:
+    """Canonical form for deduplication: lowercased, remove numbering/punct, keep letters only."""
+    s = s.lower().strip()
+    # drop leading list/bullet numbers like "1)", "2.", "-"
+    s = re.sub(r"^\s*(?:\d+[)\.:\-]\s*)+", "", s)
+    # remove non-letters except spaces
+    s = re.sub(r"[^a-z\s]", " ", s)
+    s = normalize_spaces(s)
+    # keep first 12 words as key
+    return " ".join(s.split()[:12])
+
+def dedup_sentence_text(text: str) -> str:
+    sents = split_sentences(text)
+    seen = set()
+    out = []
+    for s in sents:
+        key = canonicalize_sentence(s)
+        if key and key not in seen:
+            seen.add(key)
+            out.append(s)
+    return " ".join(out).strip()
+
+def pick_relevant_sentences(user_q: str, answer_text: str, max_sentences: int = 3) -> str:
+    """Select the most relevant sentences from a long answer by word-overlap.
+    This helps when a single FAQ entry contains multiple sub-answers.
+    """
+    uq = set(w for w in re.findall(r"[a-zA-Z]+", user_q.lower()) if len(w) >= 3)
+    if not uq:
+        return ""
+    sents = split_sentences(answer_text)
+    if not sents:
+        return ""
+    # Deduplicate near-identical sentences (normalize and compare)
+    seen_content = set()
+    unique_sents = []
+    for s in sents:
+        # Canonicalize: drop numbering, punctuation, compare first words
+        s_norm = canonicalize_sentence(s)
+        if s_norm not in seen_content:
+            seen_content.add(s_norm)
+            unique_sents.append(s)
+    sents = unique_sents
+    # High-signal phrases for troubleshooting/order failures etc.
+    priority_phrases = [
+        r"can't order", r"cannot order", r"unable to place", r"unable to order",
+        r"payment (failed|declined|error)", r"checkout (error|problem)", r"try again",
+        r"contact our help desk", r"place an order",
+    ]
+
+    def score(sent: str) -> int:
+        sw = set(w for w in re.findall(r"[a-zA-Z]+", sent.lower()) if len(w) >= 3)
+        base = len(uq & sw)
+        # Boost sentences that include any priority phrase
+        boost = 0
+        s_low = sent.lower()
+        for rx in priority_phrases:
+            if re.search(rx, s_low):
+                boost += 5
+        return base + boost
+    ranked = sorted(sents, key=score, reverse=True)
+    return " ".join(ranked[:max_sentences]).strip()
+
 def split_sentences(s: str) -> List[str]:
     """
     More reliable sentence splitter that preserves full sentences
@@ -76,6 +138,25 @@ def to_sentences(text: str, max_sentences: int = 4) -> str:
         subset.append(sents[max_sentences])
     return " ".join(subset).strip()
 
+def is_valid_answer(a_text: str) -> bool:
+    """Check if answer is meaningful (not a placeholder/navigation marker)."""
+    if not a_text:
+        return False
+    a_clean = a_text.strip()
+    # Filter out common placeholders/navigation markers
+    invalid_patterns = [
+        r'^>$',  # Just ">"
+        r'^\d+\)\s*>',  # "1) >" or "2) >"
+        r'^>\s*\d+\)',  # "> 2)"
+        r'^>\s*$',  # "> " with just whitespace
+    ]
+    for pattern in invalid_patterns:
+        if re.match(pattern, a_clean):
+            return False
+    # Must have at least 10 meaningful characters (not just punctuation/numbers)
+    meaningful = re.sub(r'[^a-zA-Z]', '', a_clean)
+    return len(meaningful) >= 10
+
 def parse_qa(doc_text: str) -> Tuple[Optional[str], Optional[str]]:
     """Extract Q and A from a 'Q: ... A: ...' block."""
     if not doc_text:
@@ -85,6 +166,9 @@ def parse_qa(doc_text: str) -> Tuple[Optional[str], Optional[str]]:
         return None, None
     q_text = normalize_spaces(m.group(1))
     a_text = normalize_spaces(m.group(2))
+    # Validate answer is meaningful
+    if not is_valid_answer(a_text):
+        return q_text, None
     return q_text, a_text
 
 def normalize_warranty_phrasing(a_text: str) -> str:
@@ -176,16 +260,31 @@ def best_question_similarity(embedder: SentenceTransformer, user_q: str, docs: L
     return float(torch.max(sims))
 
 # ---------------- Answering (extractive + tiny rephrase by Gemma if needed) ----------------
+def looks_like_instructions(answer_text: str) -> bool:
+    """Detect if answer contains step-by-step instructions."""
+    a_lower = answer_text.lower()
+    instruction_indicators = [
+        r"here's how", r"here is how", r"steps?", r"step \d+", r"step-by-step",
+        r"download", r"open", r"tap", r"click", r"sign up", r"register",
+        r"first", r"second", r"third", r"then", r"finally", r"next",
+        r"\d+\)", r"^\d+\.",  # numbered lists
+    ]
+    for pattern in instruction_indicators:
+        if re.search(pattern, a_lower):
+            return True
+    return False
+
+
 def extractive_answer(user_q: str, docs: List[str]) -> str:
     """
     Extract answer strictly from A: of the best doc (or consolidate top-2 if same info).
     For procedures: format into 3–5 short steps.
     """
-    # Gather A parts from top docs
+    # Gather A parts from top docs, skipping invalid/placeholder entries
     answers = []
     for d in docs:
         _, a = parse_qa(d)
-        if a:
+        if a and is_valid_answer(a):
             answers.append(a)
 
     if not answers:
@@ -199,15 +298,22 @@ def extractive_answer(user_q: str, docs: List[str]) -> str:
         return format_procedure_steps(answers_norm[0])
 
     # Otherwise, produce 1–2 clean sentences from top answer (maybe enrich with exceptions from next)
-    primary = to_sentences(answers_norm[0], 2)
+    # Return a slightly longer answer by default (3 sentences)
+    primary = to_sentences(answers_norm[0], 3)
 
     # Try to append jurisdictional exception once if present in another doc and not already in primary
     if len(answers_norm) > 1:
+        seen_sentences = set(split_sentences(primary.lower()))
         for a2 in answers_norm[1:]:
             if "3 years" in a2.lower() and "3 years" not in primary.lower():
-                extra = to_sentences(a2, 1)
-                # Append only the fragment mentioning exceptions
-                primary = normalize_spaces(f"{primary} {extra}")
+                extra = to_sentences(a2, 2)
+                # Only append if it adds new information (deduplicate sentences)
+                extra_sents = split_sentences(extra.lower())
+                new_sents = [s for s in extra_sents if s not in seen_sentences]
+                if new_sents:
+                    extra_clean = " ".join(new_sents[:2])
+                    primary = normalize_spaces(f"{primary} {extra_clean}")
+                    seen_sentences.update(new_sents)
 
     # Final guard
     return primary if primary else "Not enough information."
@@ -225,7 +331,7 @@ def maybe_paraphrase(tokenizer, model, device, text: str) -> str:
     with torch.no_grad():
         out = model.generate(
             **inputs,
-            max_new_tokens=100,
+            max_new_tokens=140,
             do_sample=False,
             pad_token_id=tokenizer.eos_token_id,
             eos_token_id=tokenizer.eos_token_id,
@@ -239,13 +345,37 @@ def maybe_paraphrase(tokenizer, model, device, text: str) -> str:
     gen_text = re.split(r"Rewrite the following sentence.*?:", gen_text, flags=re.IGNORECASE)[0].strip()
     gen_text = gen_text.split("Rewritten:")[0].strip()
     gen_text = re.sub(r"(Rewritten:?)+$", "", gen_text, flags=re.IGNORECASE).strip()
+    
+    # Detect corrupted/repetitive output patterns
+    error_patterns = [
+        r"the following (sentence|text) is (not )?correct",
+        r"the following is (not )?correct",
+        r"this is (not )?correct",
+        r"the following paragraph",
+    ]
+    gen_lower = gen_text.lower()
+    for pattern in error_patterns:
+        if re.search(pattern, gen_lower):
+            # This is corrupted model output, return original
+            return to_sentences(text, 3)
+    
+    # Check for excessive repetition (same phrase 3+ times)
+    words = gen_text.split()
+    if len(words) > 10:
+        # Check for repetitive sequences
+        for i in range(len(words) - 6):
+            seq = " ".join(words[i:i+3])
+            count = gen_text.lower().count(seq.lower())
+            if count >= 3:
+                # Excessive repetition detected, return original
+                return to_sentences(text, 3)
 
-    # Fallback to original if the paraphrase is empty
-    if not gen_text:
-        return to_sentences(text, 2)
+    # Fallback to original if the paraphrase is empty or too short
+    if not gen_text or len(gen_text.strip()) < 10:
+        return to_sentences(text, 3)
 
     # Keep only 1–2 sentences
-    return to_sentences(gen_text, 2)
+    return to_sentences(gen_text, 3)
 
 # ---------------- Model (kept for optional paraphrase; core is extractive) ----------------
 def load_gemma_small(model_id: str, device: torch.device):
