@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # app.py — Streamlit Chat UI for RAG Gemma chatbot (polished FOREO styling)
-# Requires: rag_gemma.py (same directory)
 
 import os
-import streamlit as st
-import time
 import re
+import time
+import base64
+import requests
+import streamlit as st
 
 from rag_gemma import (
     pick_device,
@@ -24,29 +25,33 @@ from rag_gemma import (
     load_gemma_small,
 )
 
-from intent_detection import classify_intent, extract_device_type, simple_extract_slots, needs_clarification, extract_country, extract_region
+from intent_detection import (
+    classify_intent,
+    extract_device_type,
+    simple_extract_slots,
+    needs_clarification,
+    extract_country,
+    extract_region,
+)
 from troubleshooting import get_troubleshooting_steps
 
-# ----------------------------------------
-# ----------- Streamlit Setup ------------
-# ----------------------------------------
-
+# -----------------------------
+# Streamlit Setup
+# -----------------------------
 st.set_page_config(
     page_title="FOREO Chatbot (Gemma-3-270M RAG)",
     page_icon="💗",
     layout="centered"
 )
 
-# ---- Brand assets (optional) ----
 LOGO_LOCAL_PATH = "assets/foreo_logo.png"
 LOGO_URL_ENV = os.environ.get("FOREO_LOGO_URL", "").strip()
 
-# ----------------------------------------
-# -------------- Global CSS --------------
-# ----------------------------------------
+# -----------------------------
+# Global CSS
+# -----------------------------
 st.markdown("""
 <style>
-/* Soft brand background */
 body, .stApp {
   background: radial-gradient(1200px 600px at 15% 0%, #ffeaf3 0%, rgba(255,234,243,0) 60%),
               radial-gradient(1000px 500px at 100% 20%, #efe7ff 0%, rgba(239,231,255,0) 55%),
@@ -54,16 +59,12 @@ body, .stApp {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
 }
 
-/* Chat container (glass card) */
 .chat-wrap {
-  
   margin: 26px auto 90px auto;
   background: rgba(255,255,255,0.72);
   backdrop-filter: blur(8px);
-  
 }
 
-/* Header bar */
 .header {
   display:flex; align-items:center; gap:14px;
   padding: 12px 14px;
@@ -73,86 +74,86 @@ body, .stApp {
   box-shadow: 0 6px 18px rgba(167,139,250,.24);
   margin-bottom: 10px;
   margin-top: -30px;
-  
 }
-.header .title {
-  font-weight: 800; letter-spacing:.3px;
-  font-size: 1.4rem; text-shadow: 0 1px 3px rgba(0,0,0,.25);
-}
-.header .sub {
-  font-size: .9rem; opacity: .9; margin-top: 2px;
-}
+.header .title { font-weight: 800; letter-spacing:.3px; font-size: 1.4rem; text-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.header .sub { font-size: .9rem; opacity: .9; margin-top: 2px; }
 
-/* Logo circle */
-.logo-wrap {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: rgba(255,255,255,.22);
-  display:flex; align-items:center; justify-content:center;
-  border: 1px solid rgba(255,255,255,.35);
-  overflow:hidden;
-}
+.logo-wrap { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.22);
+  display:flex; align-items:center; justify-content:center; border: 1px solid rgba(255,255,255,.35); overflow:hidden; }
 
-/* Chat bubbles */
 .chat-bubble {
-    border-radius: 18px;
-    padding: 10px 14px;
-    margin: 8px 0;
-    line-height: 1.5;
-    max-width: 88%;
-    word-wrap: break-word;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
-    animation: fadeIn .12s ease-in;
+  border-radius: 18px; padding: 10px 14px; margin: 8px 0; line-height: 1.5; max-width: 88%;
+  word-wrap: break-word; box-shadow: 0 6px 16px rgba(15, 23, 42, .06); animation: fadeIn .12s ease-in;
 }
 @keyframes fadeIn { from {opacity:0; transform: translateY(4px)} to {opacity:1; transform:none} }
+.user-bubble { margin-left: auto; background: linear-gradient(135deg, #87b7ff 0%, #6ae0ea 100%); color: #fff; }
+.bot-bubble { margin-right: auto; color: #0f172a; background: #f5f6fb; border: 1px solid #eef1f6; }
 
-.user-bubble {
-    margin-left: auto;
-    color: #0b1220;
-    background: linear-gradient(135deg, #87b7ff 0%, #6ae0ea 100%);
-    color: #fff;
-}
-.bot-bubble {
-    margin-right: auto;
-    color: #0f172a;
-    background: #f5f6fb;
-    border: 1px solid #eef1f6;
-}
-
-/* Thinking bubble with animated 3 dots */
-.think-bubble {
-  display:inline-flex; align-items:center; gap:8px;
-  margin-right: auto;
-  color:#6b7280; background:#f5f6fb; border:1px solid #eef1f6;
-  padding: 10px 14px; border-radius: 18px;
-}
+.think-bubble { display:inline-flex; align-items:center; gap:8px; margin-right: auto; color:#6b7280;
+  background:#f5f6fb; border:1px solid #eef1f6; padding: 10px 14px; border-radius: 18px; }
 .dot { width:6px; height:6px; border-radius:50%; background:#a3a8b6; display:inline-block; animation: blink 1.2s infinite;}
-.dot:nth-child(2){ animation-delay:.2s;}
-.dot:nth-child(3){ animation-delay:.4s;}
+.dot:nth-child(2){ animation-delay:.2s;} .dot:nth-child(3){ animation-delay:.4s;}
 @keyframes blink { 0%, 80%, 100% { opacity:.25 } 40% { opacity:1 } }
 
-/* Quick chips (optional if you add later) */
-.pill {
-  border: 2px solid #8b5cf6;
-  color: #373c4a;
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: .92rem;
-  cursor: pointer;
-}
-.pill:hover { background:#f3e8ff; }
-
-/* Footer */
-.footer {
-  text-align:center; color:#8a90a6; font-size:.88rem; margin-top: 12px;
-}
+.footer { text-align:center; color:#8a90a6; font-size:.88rem; margin-top: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
+# -----------------------------
+# Paraphrase via HF Inference API (hosted Gemma)
+# -----------------------------
+def _get_secret(name: str, default: str = "") -> str:
+    """Read from st.secrets first, fallback to env var."""
+    try:
+        if name in st.secrets:
+            v = st.secrets.get(name, default)
+            return v if v is not None else default
+    except Exception:
+        pass
+    return os.getenv(name, default)
 
-# ----------------------------------------
-# ---------- Initialize state ------------
-# ----------------------------------------
+def paraphrase_with_gemma_api(text: str) -> str:
+    """Use HF Inference API to lightly paraphrase/clean the answer."""
+    token = _get_secret("HF_TOKEN", "")
+    if not token:
+        return text  # no token -> skip
+
+    model = _get_secret("GEMMA_API_MODEL", "google/gemma-2-2b-it")
+    url = f"https://api-inference.huggingface.co/models/{model}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    prompt = (
+        "Paraphrase the following answer to be concise, friendly, and avoid duplication. "
+        "Do not add new facts. Keep brand-safe tone.\n\nAnswer:\n"
+        f"{text}\n\nParaphrase:"
+    )
+    payload = {"inputs": prompt, "parameters": {"max_new_tokens": 128, "temperature": 0.3}}
+
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        # HF responses vary: handle both text-generation and chat templates
+        if isinstance(data, list) and len(data) and "generated_text" in data[0]:
+            out = data[0]["generated_text"]
+        elif isinstance(data, dict) and "generated_text" in data:
+            out = data["generated_text"]
+        else:
+            # Some models return a list of dicts with 'generated_text'
+            out = str(data)
+        # Heuristic: return only the part after "Paraphrase:" if present
+        if "Paraphrase:" in out:
+            out = out.split("Paraphrase:", 1)[-1].strip()
+        return out.strip() if out.strip() else text
+    except Exception:
+        return text  # fail-safe
+
+# -----------------------------
+# Initialize state
+# -----------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant",
@@ -163,77 +164,49 @@ device = pick_device()
 
 @st.cache_resource
 def load_all_components():
-    """Load embeddings, DB, and Gemma model once."""
+    """Load embeddings & DB; load local Gemma ONLY when enabled."""
     coll = connect_chroma(CHROMA_DIR, COLLECTION_NAME)
     embedder = SentenceTransformer(EMBED_MODEL_NAME)
-    tokenizer, model = load_gemma_small(GEMMA_SMALL_ID, device)
+    tokenizer = model = None
+
+    # Local-only Gemma load (use on your laptop)
+    if _get_secret("USE_LOCAL_GEMMA", os.getenv("USE_LOCAL_GEMMA", "0")) == "1":
+        try:
+            tokenizer, model = load_gemma_small(GEMMA_SMALL_ID, device)
+        except Exception:
+            tokenizer = model = None  # never crash
+
     return coll, embedder, tokenizer, model
 
 coll, embedder, tokenizer, model = load_all_components()
 
-# ----------------------------------------
-# ----------- Chat interface -------------
-# ----------------------------------------
-
+# -----------------------------
+# Chat interface
+# -----------------------------
 st.markdown('<div class="chat-wrap">', unsafe_allow_html=True)
-# Responsive FOREO logo above everything
+
+# Top logo styling & render
 st.markdown("""
 <style>
-.logo-top {
-  text-align: center;
-  margin-top: -100px;        /* lift logo up */
-  margin-bottom: -100px;       /* tighten spacing below */
-}
-
-.logo-top img {
-  max-width: 220px;         /* slightly larger on desktop */
-  width: 50%;
-  height: auto;
-  opacity: 0.96;
-  transition: transform 0.3s ease, opacity 0.3s ease;
-}
-
-.logo-top img:hover {
-  transform: scale(1.05);
-  opacity: 1;
-}
-
-@media (max-width: 768px) {
-  .logo-top img {
-    max-width: 160px;       /* smaller for phones */
-    width: 35%;
-  }
-}
+.logo-top { text-align: center; margin-top: -100px; margin-bottom: -100px; }
+.logo-top img { max-width: 220px; width: 50%; height: auto; opacity: 0.96; transition: transform 0.3s ease, opacity 0.3s ease; }
+.logo-top img:hover { transform: scale(1.05); opacity: 1; }
+@media (max-width: 768px) { .logo-top img { max-width: 160px; width: 35%; } }
 </style>
 """, unsafe_allow_html=True)
 
-# Load logo once and reuse for both top logo and header
-import base64
-logo_rendered = False
 b64_logo = None
 header_logo_html = "💗"
-
 if os.path.exists(LOGO_LOCAL_PATH):
     with open(LOGO_LOCAL_PATH, "rb") as f:
         b64_logo = base64.b64encode(f.read()).decode()
-    logo_rendered = True
     header_logo_html = f'<img src="data:image/png;base64,{b64_logo}" width="30" height="30" alt="FOREO" />'
 elif LOGO_URL_ENV:
-    logo_rendered = True
     header_logo_html = f'<img src="{LOGO_URL_ENV}" width="30" height="30" alt="FOREO" />'
 
-# Display top logo (large)
 if b64_logo:
-    st.markdown(
-        f"""
-    <div class="logo-top">
-      <img src="data:image/png;base64,{b64_logo}" alt="FOREO Logo">
-    </div>
-    """,
-        unsafe_allow_html=True
-    )
+    st.markdown(f'<div class="logo-top"><img src="data:image/png;base64,{b64_logo}" alt="FOREO Logo"></div>', unsafe_allow_html=True)
 
-# Header with logo
 st.markdown(
     f"""
 <div class="header">
@@ -247,21 +220,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Render chat history
+# Render history
 for msg in st.session_state.messages:
     role, content = msg["role"], msg["content"]
     css_class = "user-bubble" if role == "user" else "bot-bubble"
     st.markdown(f'<div class="chat-bubble {css_class}">{content}</div>', unsafe_allow_html=True)
 
-# User input
+# Input
 q = st.chat_input("Ask your FOREO question here...")
 
 if q:
-    # Append user message
     st.session_state.messages.append({"role": "user", "content": q})
     st.markdown(f'<div class="chat-bubble user-bubble">{q}</div>', unsafe_allow_html=True)
 
-    # “Thinking…” three-dot bubble
     thinking = st.empty()
     with thinking.container():
         st.markdown(
@@ -269,19 +240,14 @@ if q:
             unsafe_allow_html=True
         )
 
-    # REASONING LOOP with clarification support
-    # Step 1: Check if we're in a clarification flow FIRST
+    # ----- Reasoning loop with clarification -----
     if st.session_state.get("reasoning_state"):
-        # We're continuing a clarification flow - merge with existing context
-        old_intent = st.session_state.get("reasoning_state", {}).get("intent")
-        old_slots = st.session_state.get("reasoning_state", {}).get("slots", {})
-        
-        # Extract any additional info from the current query (country, device, issue, etc.)
+        old_intent = st.session_state["reasoning_state"].get("intent")
+        old_slots = st.session_state["reasoning_state"].get("slots", {})
         country = extract_country(q)
         region = extract_region(q)
-        device = extract_device_type(q)
-        
-        # Extract issue type
+        device_type = extract_device_type(q)
+
         q_lower = q.lower()
         if any(kw in q_lower for kw in ["charge", "charging", "battery", "power"]):
             issue = "charging"
@@ -295,112 +261,84 @@ if q:
             issue = "performance"
         else:
             issue = None
-        
-        # Start with old slots and update with new info
+
         slots = old_slots.copy()
-        
-        # Add to slots if found
-        if country:
-            slots["country"] = country
-        if region:
-            slots["region"] = region
-        if device:
-            slots["device_type"] = device
-        if issue:
-            slots["issue"] = issue
-        
-        # Use the original intent
+        if country: slots["country"] = country
+        if region: slots["region"] = region
+        if device_type: slots["device_type"] = device_type
+        if issue: slots["issue"] = issue
         intent = old_intent
     else:
-        # Not in clarification - classify intent and extract slots normally
-        intent, confidence = classify_intent(q)
+        intent, _ = classify_intent(q)
         slots = simple_extract_slots(q)
-    
-    # Step 3: Check if clarification is needed
+
     needs_clar, clarification_q = needs_clarification(intent, slots)
-    
+
     if needs_clar:
-        # Store current state for next turn
-        st.session_state["reasoning_state"] = {
-            "intent": intent,
-            "slots": slots
-        }
+        st.session_state["reasoning_state"] = {"intent": intent, "slots": slots}
         bot_reply = f"To help you better, {clarification_q}"
     else:
-        # All info gathered - provide answer
-        # Check if we just got a clarification response
         was_in_clarification = st.session_state.get("reasoning_state") is not None
         is_short_query = len(q.split()) <= 3
         is_country_response = was_in_clarification and (slots.get("country") or slots.get("region")) and intent in ["warranty", "orders"]
-        
+
         if was_in_clarification and (is_short_query or is_country_response):
-            # This is a clarification response - use the intent to construct a proper query
             if intent == "warranty":
                 augmented_query = "warranty information"
                 if slots.get("country"):
-                    augmented_query = f"{augmented_query} in {slots.get('country')}"
+                    augmented_query += f" in {slots['country']}"
             elif intent == "orders":
                 augmented_query = "order and shipping information"
-                if slots.get("country"):
-                    augmented_query = f"{augmented_query} in {slots.get('country')}"
-                elif slots.get("region"):
-                    augmented_query = f"{augmented_query} in {slots.get('region')}"
+                loc = slots.get("country") or slots.get("region")
+                if loc: augmented_query += f" in {loc}"
             else:
-                # For device-related clarifications, just use the original query
                 augmented_query = q
         else:
-            # Normal query - use as is
             augmented_query = q
-            
-            # Augment query with country if available and relevant
             if intent in ["warranty", "orders"]:
-                if slots.get("country"):
-                    augmented_query = f"{augmented_query} in {slots.get('country')}"
-                elif slots.get("region"):
-                    augmented_query = f"{augmented_query} in {slots.get('region')}"
-        
-        # For troubleshooting intent, use troubleshooting flow
+                loc = slots.get("country") or slots.get("region")
+                if loc: augmented_query += f" in {loc}"
+
+        # Intent-specific flows
         if intent == "troubleshooting" and slots.get("issue"):
             bot_reply = get_troubleshooting_steps(slots)
-        # For cleaning intent, use troubleshooting flow
         elif intent == "cleaning" and slots.get("issue"):
             bot_reply = get_troubleshooting_steps(slots)
-        # For other intents, use RAG pipeline
+        elif intent == "charging":
+            if not slots.get("issue"):
+                slots["issue"] = "charging"
+            bot_reply = get_troubleshooting_steps(slots)
         else:
-            # Charging intent can also use troubleshooting guidance
-            if intent == "charging":
-                if not slots.get("issue"):
-                    slots["issue"] = "charging"
-                bot_reply = get_troubleshooting_steps(slots)
+            # ----- RAG retrieval -----
+            docs, _ = retrieve_top_k(coll, embedder, augmented_query, 3)
+            best_sim = best_question_similarity(embedder, augmented_query, docs)
+            if best_sim < OFFTOPIC_SIM_THRESHOLD:
+                bot_reply = OFF_TOPIC_MESSAGE
             else:
-                t0 = time.time()
-                docs, metas = retrieve_top_k(coll, embedder, augmented_query, 3)
-                t1 = time.time()
+                ans = extractive_answer(augmented_query, docs)
 
-                best_sim = best_question_similarity(embedder, augmented_query, docs)
-                if best_sim < OFFTOPIC_SIM_THRESHOLD:
-                    bot_reply = OFF_TOPIC_MESSAGE
-                else:
-                    ans = extractive_answer(augmented_query, docs)
-                    if model is not None and ans not in {"Not enough information.", ""}:
-                        try:
-                            ans = maybe_paraphrase(tokenizer, model, device, ans)
-                        except Exception:
-                            pass
-                    bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+                # Paraphrase: local Gemma first (if enabled), else HF API (if enabled)
+                use_local = _get_secret("USE_LOCAL_GEMMA", os.getenv("USE_LOCAL_GEMMA", "0")) == "1"
+                use_hf_api = _get_secret("USE_HF_API", os.getenv("USE_HF_API", "0")) == "1"
 
-        # Clear the clarification state only if we didn't go off-topic
+                if use_local and model is not None and ans not in {"Not enough information.", ""}:
+                    try:
+                        ans = maybe_paraphrase(tokenizer, model, device, ans)
+                    except Exception:
+                        pass
+                elif use_hf_api and ans not in {"Not enough information.", ""}:
+                    ans = paraphrase_with_gemma_api(ans)
+
+                bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+
         if bot_reply != OFF_TOPIC_MESSAGE:
             st.session_state["reasoning_state"] = None
 
-    # Safety fallback: if bot_reply is missing/empty, guide the user
     if not bot_reply or not bot_reply.strip():
         bot_reply = "I didn't catch that. Could you rephrase or provide a bit more detail?"
-    # Replace thinking bubble with bot reply
+
     thinking.empty()
     st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
-
-    # Append to session
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
 
 # Footer
