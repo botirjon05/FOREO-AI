@@ -185,7 +185,7 @@ def load_all_components():
     # Local-only Gemma load (use on your laptop)
     if _get_secret("USE_LOCAL_GEMMA", os.getenv("USE_LOCAL_GEMMA", "0")) == "1":
         try:
-            tokenizer, model = load_gemma_small(GEMMA_SMALL_ID, device)
+    tokenizer, model = load_gemma_small(GEMMA_SMALL_ID, device)
         except Exception:
             tokenizer = model = None  # never crash
 
@@ -439,11 +439,11 @@ if q:
                     # ----- RAG retrieval -----
                     docs, _ = retrieve_top_k(coll, embedder, augmented_query, 3)
                     best_sim = best_question_similarity(embedder, augmented_query, docs)
-                    if best_sim < OFFTOPIC_SIM_THRESHOLD:
-                        bot_reply = OFF_TOPIC_MESSAGE
+    if best_sim < OFFTOPIC_SIM_THRESHOLD:
+        bot_reply = OFF_TOPIC_MESSAGE
                         # Track failed attempt
                         st.session_state.failed_attempts = st.session_state.get("failed_attempts", 0) + 1
-                    else:
+    else:
                         ans = extractive_answer(augmented_query, docs)
 
                         # Paraphrase: local Gemma first (if enabled), else HF API (if enabled)
@@ -451,15 +451,15 @@ if q:
                         use_hf_api = _get_secret("USE_HF_API", os.getenv("USE_HF_API", "0")) == "1"
 
                         if use_local and model is not None and ans not in {"Not enough information.", ""}:
-                            try:
-                                ans = maybe_paraphrase(tokenizer, model, device, ans)
-                            except Exception:
-                                pass
+            try:
+                ans = maybe_paraphrase(tokenizer, model, device, ans)
+            except Exception:
+                pass
                         elif use_hf_api and ans not in {"Not enough information.", ""}:
                             ans = paraphrase_with_gemma_api(ans)
 
-                        bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
-                        
+        bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+
                         # Reset failed attempts on successful answer
                         if bot_reply and bot_reply.strip() and bot_reply != OFF_TOPIC_MESSAGE:
                             st.session_state.failed_attempts = 0
@@ -484,9 +484,9 @@ if q:
                     else:
                         bot_reply = "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team who can assist you further. Would you like me to create a support ticket?"
 
-            thinking.empty()
-            st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
-            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+    thinking.empty()
+    st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
+    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
 
 # Footer
 st.markdown("""
