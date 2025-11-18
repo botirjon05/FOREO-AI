@@ -40,6 +40,10 @@ def classify_intent(query: str) -> Tuple[str, float]:
     if any(kw in q_lower for kw in ["which", "what", "difference", "compare", "recommend"]):
         return ("products", 0.7)
     
+    # Escalation/support request
+    if any(kw in q_lower for kw in ["speak to", "talk to", "human", "agent", "support", "help desk", "customer service", "escalate", "ticket"]):
+        return ("escalation", 0.9)
+    
     # Default to general
     return ("general", 0.5)
 
@@ -222,4 +226,55 @@ def needs_clarification(intent: str, slots: Dict) -> Tuple[bool, str]:
     
     # Account, products, and general intents usually don't need clarification
     
+    return False, ""
+
+def extract_email(query: str) -> Optional[str]:
+    """Extract email address from query"""
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    match = re.search(email_pattern, query)
+    if match:
+        return match.group().lower()
+    return None
+
+def extract_name(query: str) -> Optional[str]:
+    """Extract name from query (accepts both uppercase and lowercase names)"""
+    words = query.strip().split()
+    if not words:
+        return None
+    
+    # Filter out common non-name words
+    non_name_words = {"my", "name", "is", "i'm", "im", "call", "me", "the"}
+    words = [w for w in words if w.lower() not in non_name_words]
+    
+    if not words:
+        return None
+    
+    if len(words) >= 2:
+        # Take first two words as name (capitalize them)
+        first = words[0].capitalize()
+        second = words[1].capitalize()
+        # Check if they look like names (not too short, not all caps acronyms)
+        if len(first) > 1 and len(second) > 1:
+            if not (first.isupper() and second.isupper() and len(first) <= 3 and len(second) <= 3):
+                return f"{first} {second}"
+    elif len(words) == 1:
+        # Single word name
+        original = words[0]
+        name = original.capitalize()
+        if len(name) > 1:
+            # Don't accept very short all-caps (likely acronyms like "AB", "USA")
+            if not (original.isupper() and len(original) <= 3):
+                return name
+    
+    return None
+
+def needs_ticket_info(ticket_slots: Dict) -> Tuple[bool, str]:
+    """
+    Check if ticket information is complete.
+    Returns: (needs_info, missing_field_question)
+    """
+    if not ticket_slots.get("name"):
+        return True, "What's your name?"
+    if not ticket_slots.get("email"):
+        return True, "What's your email address?"
     return False, ""

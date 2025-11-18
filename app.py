@@ -5,8 +5,11 @@ import os
 import re
 import time
 import base64
+import json
+import uuid
 import requests
 import streamlit as st
+from datetime import datetime
 
 from rag_gemma import (
     pick_device,
@@ -32,8 +35,12 @@ from intent_detection import (
     needs_clarification,
     extract_country,
     extract_region,
+    extract_email,
+    extract_name,
+    needs_ticket_info,
 )
 from troubleshooting import get_troubleshooting_steps
+from ticket_management import create_ticket
 
 # -----------------------------
 # Streamlit Setup
@@ -160,6 +167,12 @@ if "messages" not in st.session_state:
          "content": "👋Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."}
     ]
 
+# Initialize escalation tracking
+if "failed_attempts" not in st.session_state:
+    st.session_state.failed_attempts = 0
+if "ticket_state" not in st.session_state:
+    st.session_state.ticket_state = None  # None, "collecting", or ticket dict
+
 device = pick_device()
 
 @st.cache_resource
@@ -240,106 +253,240 @@ if q:
             unsafe_allow_html=True
         )
 
-    # ----- Reasoning loop with clarification -----
-    if st.session_state.get("reasoning_state"):
-        old_intent = st.session_state["reasoning_state"].get("intent")
-        old_slots = st.session_state["reasoning_state"].get("slots", {})
-        country = extract_country(q)
-        region = extract_region(q)
-        device_type = extract_device_type(q)
-
-        q_lower = q.lower()
-        if any(kw in q_lower for kw in ["charge", "charging", "battery", "power"]):
-            issue = "charging"
-        elif any(kw in q_lower for kw in ["turn on", "won't turn", "wont turn", "start", "power on"]):
-            issue = "not_turning_on"
-        elif any(kw in q_lower for kw in ["clean", "cleaning", "wash"]):
-            issue = "cleaning"
-        elif any(kw in q_lower for kw in ["button", "buttons"]):
-            issue = "buttons"
-        elif any(kw in q_lower for kw in ["weak", "slow", "performance"]):
-            issue = "performance"
+    # Check if we're collecting ticket information
+    ticket_collection_complete = False
+    if st.session_state.ticket_state == "collecting":
+        # Check if user wants to cancel/exit ticket collection
+        # Use word boundaries to avoid false matches (e.g., "no" in email addresses)
+        q_lower = q.lower().strip()
+        # Check for cancel phrases first (multi-word)
+        cancel_phrases = ["never mind", "nevermind", "don't need", "dont need", "no thanks", "no thank you", "not needed"]
+        is_cancel = any(phrase in q_lower for phrase in cancel_phrases)
+        # Then check for single-word cancel keywords with word boundaries
+        if not is_cancel:
+            cancel_keywords = ["no", "don't", "dont", "cancel", "skip"]
+            # Use word boundaries to match whole words only
+            for kw in cancel_keywords:
+                # Match as whole word (not part of another word)
+                pattern = r'\b' + re.escape(kw) + r'\b'
+                if re.search(pattern, q_lower):
+                    is_cancel = True
+                    break
+        
+        if is_cancel:
+            # User wants to cancel - exit ticket collection mode
+            st.session_state.ticket_state = None
+            st.session_state["ticket_slots"] = {}
+            bot_reply = "No problem! How else can I help you today?"
+            thinking.empty()
+            st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+        # Check if user is asking a normal question (not providing ticket info)
+        elif not extract_email(q) and not extract_name(q) and len(q.split()) > 3:
+            # Looks like a normal question - exit ticket collection and process normally
+            st.session_state.ticket_state = None
+            st.session_state["ticket_slots"] = {}
+            # Continue with normal flow (will be handled below)
         else:
-            issue = None
-
-        slots = old_slots.copy()
-        if country: slots["country"] = country
-        if region: slots["region"] = region
-        if device_type: slots["device_type"] = device_type
-        if issue: slots["issue"] = issue
-        intent = old_intent
-    else:
-        intent, _ = classify_intent(q)
-        slots = simple_extract_slots(q)
-
-    needs_clar, clarification_q = needs_clarification(intent, slots)
-
-    if needs_clar:
-        st.session_state["reasoning_state"] = {"intent": intent, "slots": slots}
-        bot_reply = f"To help you better, {clarification_q}"
-    else:
-        was_in_clarification = st.session_state.get("reasoning_state") is not None
-        is_short_query = len(q.split()) <= 3
-        is_country_response = was_in_clarification and (slots.get("country") or slots.get("region")) and intent in ["warranty", "orders"]
-
-        if was_in_clarification and (is_short_query or is_country_response):
-            if intent == "warranty":
-                augmented_query = "warranty information"
-                if slots.get("country"):
-                    augmented_query += f" in {slots['country']}"
-            elif intent == "orders":
-                augmented_query = "order and shipping information"
-                loc = slots.get("country") or slots.get("region")
-                if loc: augmented_query += f" in {loc}"
+            # Extract ticket info from current query
+            ticket_slots = st.session_state.get("ticket_slots", {})
+            name = extract_name(q) or ticket_slots.get("name")
+            email = extract_email(q) or ticket_slots.get("email")
+            device = extract_device_type(q) or ticket_slots.get("device")
+            issue = ticket_slots.get("issue", "")
+            
+            # Update ticket slots
+            if name:
+                ticket_slots["name"] = name
+            if email:
+                ticket_slots["email"] = email
+            if device:
+                ticket_slots["device"] = device
+            if not issue and st.session_state.get("failed_attempts", 0) > 0:
+                # Use the last few queries as issue description
+                recent_queries = [msg["content"] for msg in st.session_state.messages[-5:] if msg["role"] == "user"]
+                issue = " | ".join(recent_queries[:3])
+                ticket_slots["issue"] = issue
+            
+            st.session_state["ticket_slots"] = ticket_slots
+            
+            # Check if we have all required info
+            needs_info, missing_q = needs_ticket_info(ticket_slots)
+            if needs_info:
+                bot_reply = f"To create a support ticket, {missing_q}"
             else:
-                augmented_query = q
-        else:
-            augmented_query = q
-            if intent in ["warranty", "orders"]:
-                loc = slots.get("country") or slots.get("region")
-                if loc: augmented_query += f" in {loc}"
+                # All info collected - create ticket
+                ticket = create_ticket(
+                    name=ticket_slots["name"],
+                    email=ticket_slots["email"],
+                    device=ticket_slots.get("device"),
+                    issue=ticket_slots.get("issue"),
+                    chat_history=st.session_state.messages.copy(),
+                    metadata={"failed_attempts": st.session_state.get("failed_attempts", 0)}
+                )
+                
+                bot_reply = f"✅ Support ticket created! Your ticket ID is **{ticket['ticket_id']}**. Our support team will contact you at {ticket_slots['email']} within 24 hours."
+                st.session_state.ticket_state = None
+                st.session_state.failed_attempts = 0
+                st.session_state["ticket_slots"] = {}
+                # Mark that we just created a ticket to prevent immediate re-escalation
+                st.session_state["ticket_just_created"] = True
+                ticket_collection_complete = True
+            
+            thinking.empty()
+            st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+    
+    # Normal query flow - continue with reasoning loop (if not in ticket collection or just completed it)
+    # Skip normal flow if we just completed ticket collection (to prevent re-processing)
+    if not ticket_collection_complete and st.session_state.ticket_state != "collecting":
+        # ----- Reasoning loop with clarification -----
+        if st.session_state.get("reasoning_state"):
+            old_intent = st.session_state["reasoning_state"].get("intent")
+            old_slots = st.session_state["reasoning_state"].get("slots", {})
+            country = extract_country(q)
+            region = extract_region(q)
+            device_type = extract_device_type(q)
 
-        # Intent-specific flows
-        if intent == "troubleshooting" and slots.get("issue"):
-            bot_reply = get_troubleshooting_steps(slots)
-        elif intent == "cleaning" and slots.get("issue"):
-            bot_reply = get_troubleshooting_steps(slots)
-        elif intent == "charging":
-            if not slots.get("issue"):
-                slots["issue"] = "charging"
-            bot_reply = get_troubleshooting_steps(slots)
-        else:
-            # ----- RAG retrieval -----
-            docs, _ = retrieve_top_k(coll, embedder, augmented_query, 3)
-            best_sim = best_question_similarity(embedder, augmented_query, docs)
-            if best_sim < OFFTOPIC_SIM_THRESHOLD:
-                bot_reply = OFF_TOPIC_MESSAGE
+            q_lower = q.lower()
+            if any(kw in q_lower for kw in ["charge", "charging", "battery", "power"]):
+                issue = "charging"
+            elif any(kw in q_lower for kw in ["turn on", "won't turn", "wont turn", "start", "power on"]):
+                issue = "not_turning_on"
+            elif any(kw in q_lower for kw in ["clean", "cleaning", "wash"]):
+                issue = "cleaning"
+            elif any(kw in q_lower for kw in ["button", "buttons"]):
+                issue = "buttons"
+            elif any(kw in q_lower for kw in ["weak", "slow", "performance"]):
+                issue = "performance"
             else:
-                ans = extractive_answer(augmented_query, docs)
+                issue = None
 
-                # Paraphrase: local Gemma first (if enabled), else HF API (if enabled)
-                use_local = _get_secret("USE_LOCAL_GEMMA", os.getenv("USE_LOCAL_GEMMA", "0")) == "1"
-                use_hf_api = _get_secret("USE_HF_API", os.getenv("USE_HF_API", "0")) == "1"
+            slots = old_slots.copy()
+            if country: slots["country"] = country
+            if region: slots["region"] = region
+            if device_type: slots["device_type"] = device_type
+            if issue: slots["issue"] = issue
+            intent = old_intent
+        else:
+            intent, _ = classify_intent(q)
+            slots = simple_extract_slots(q)
 
-                if use_local and model is not None and ans not in {"Not enough information.", ""}:
-                    try:
-                        ans = maybe_paraphrase(tokenizer, model, device, ans)
-                    except Exception:
-                        pass
-                elif use_hf_api and ans not in {"Not enough information.", ""}:
-                    ans = paraphrase_with_gemma_api(ans)
+        # Check for escalation intent or user accepting ticket creation
+        # Only trigger escalation if:
+        # 1. User explicitly requests escalation, OR
+        # 2. User accepts ticket creation, OR
+        # 3. Failed attempts >= 2 AND current query is also likely to fail (we'll check after RAG)
+        # BUT: Don't trigger if we just created a ticket (prevent immediate re-escalation)
+        if st.session_state.get("ticket_just_created", False):
+            # Clear the flag - only skip escalation for this one turn
+            st.session_state["ticket_just_created"] = False
+            should_escalate = False
+        else:
+            user_accepts_ticket = any(kw in q.lower() for kw in ["yes", "yeah", "sure", "okay", "ok", "create ticket", "support ticket"])
+            should_escalate = intent == "escalation" or user_accepts_ticket
+        
+        # Don't trigger escalation here if it's just failed attempts - we'll check after RAG
+        if should_escalate:
+            # Trigger escalation flow
+            st.session_state.ticket_state = "collecting"
+            st.session_state["ticket_slots"] = {
+                "device": slots.get("device_type"),
+                "issue": slots.get("issue", "")
+            }
+            bot_reply = "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+            thinking.empty()
+            st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+        else:
+            needs_clar, clarification_q = needs_clarification(intent, slots)
 
-                bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+            if needs_clar:
+                st.session_state["reasoning_state"] = {"intent": intent, "slots": slots}
+                bot_reply = f"To help you better, {clarification_q}"
+            else:
+                was_in_clarification = st.session_state.get("reasoning_state") is not None
+                is_short_query = len(q.split()) <= 3
+                is_country_response = was_in_clarification and (slots.get("country") or slots.get("region")) and intent in ["warranty", "orders"]
 
-        if bot_reply != OFF_TOPIC_MESSAGE:
-            st.session_state["reasoning_state"] = None
+                if was_in_clarification and (is_short_query or is_country_response):
+                    if intent == "warranty":
+                        augmented_query = "warranty information"
+                        if slots.get("country"):
+                            augmented_query += f" in {slots['country']}"
+                    elif intent == "orders":
+                        augmented_query = "order and shipping information"
+                        loc = slots.get("country") or slots.get("region")
+                        if loc: augmented_query += f" in {loc}"
+                    else:
+                        augmented_query = q
+                else:
+                    augmented_query = q
+                    if intent in ["warranty", "orders"]:
+                        loc = slots.get("country") or slots.get("region")
+                        if loc: augmented_query += f" in {loc}"
 
-    if not bot_reply or not bot_reply.strip():
-        bot_reply = "I didn't catch that. Could you rephrase or provide a bit more detail?"
+                # Intent-specific flows
+                if intent == "troubleshooting" and slots.get("issue"):
+                    bot_reply = get_troubleshooting_steps(slots)
+                elif intent == "cleaning" and slots.get("issue"):
+                    bot_reply = get_troubleshooting_steps(slots)
+                elif intent == "charging":
+                    if not slots.get("issue"):
+                        slots["issue"] = "charging"
+                    bot_reply = get_troubleshooting_steps(slots)
+                else:
+                    # ----- RAG retrieval -----
+                    docs, _ = retrieve_top_k(coll, embedder, augmented_query, 3)
+                    best_sim = best_question_similarity(embedder, augmented_query, docs)
+                    if best_sim < OFFTOPIC_SIM_THRESHOLD:
+                        bot_reply = OFF_TOPIC_MESSAGE
+                        # Track failed attempt
+                        st.session_state.failed_attempts = st.session_state.get("failed_attempts", 0) + 1
+                    else:
+                        ans = extractive_answer(augmented_query, docs)
 
-    thinking.empty()
-    st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
+                        # Paraphrase: local Gemma first (if enabled), else HF API (if enabled)
+                        use_local = _get_secret("USE_LOCAL_GEMMA", os.getenv("USE_LOCAL_GEMMA", "0")) == "1"
+                        use_hf_api = _get_secret("USE_HF_API", os.getenv("USE_HF_API", "0")) == "1"
+
+                        if use_local and model is not None and ans not in {"Not enough information.", ""}:
+                            try:
+                                ans = maybe_paraphrase(tokenizer, model, device, ans)
+                            except Exception:
+                                pass
+                        elif use_hf_api and ans not in {"Not enough information.", ""}:
+                            ans = paraphrase_with_gemma_api(ans)
+
+                        bot_reply = re.sub(r"https?://\\S+", "", ans).strip()
+                        
+                        # Reset failed attempts on successful answer
+                        if bot_reply and bot_reply.strip() and bot_reply != OFF_TOPIC_MESSAGE:
+                            st.session_state.failed_attempts = 0
+
+                if bot_reply != OFF_TOPIC_MESSAGE:
+                    st.session_state["reasoning_state"] = None
+
+            # Track failed attempts for empty or off-topic answers
+            if not bot_reply or not bot_reply.strip() or bot_reply == OFF_TOPIC_MESSAGE:
+                # Get failed count BEFORE incrementing
+                failed_count = st.session_state.get("failed_attempts", 0)
+                st.session_state.failed_attempts = failed_count + 1
+                
+                if not bot_reply or not bot_reply.strip():
+                    bot_reply = "I didn't catch that. Could you rephrase or provide a bit more detail?"
+                elif bot_reply == OFF_TOPIC_MESSAGE:
+                    # Vary the off-topic message to avoid repetition
+                    if failed_count == 0:
+                        bot_reply = "I am a FOREO chatbot. Please ask only FOREO-related questions."
+                    elif failed_count == 1:
+                        bot_reply = "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+                    else:
+                        bot_reply = "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team who can assist you further. Would you like me to create a support ticket?"
+
+            thinking.empty()
+            st.markdown(f'<div class="chat-bubble bot-bubble">{bot_reply}</div>', unsafe_allow_html=True)
+            st.session_state.messages.append({"role": "assistant", "content": bot_reply})
 
 # Footer
 st.markdown("""

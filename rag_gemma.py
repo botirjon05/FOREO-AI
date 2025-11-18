@@ -298,8 +298,8 @@ def extractive_answer(user_q: str, docs: List[str]) -> str:
         return format_procedure_steps(answers_norm[0])
 
     # Otherwise, produce 1–2 clean sentences from top answer (maybe enrich with exceptions from next)
-    # Return a slightly longer answer by default (3 sentences)
-    primary = to_sentences(answers_norm[0], 3)
+    # Return a longer answer by default (5 sentences) to avoid truncation
+    primary = to_sentences(answers_norm[0], 5)
 
     # Try to append jurisdictional exception once if present in another doc and not already in primary
     if len(answers_norm) > 1:
