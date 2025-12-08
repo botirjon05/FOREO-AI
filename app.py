@@ -11,6 +11,9 @@ import requests
 import streamlit as st
 from datetime import datetime
 
+from db import init_db, get_session
+import db as db_module  # shared SQLAlchemy helpers
+
 from rag_gemma import (
     pick_device,
     connect_chroma,
@@ -158,6 +161,22 @@ def paraphrase_with_gemma_api(text: str) -> str:
     except Exception:
         return text  # fail-safe
 
+
+def _infer_device_from_history(messages) -> str:
+    """
+    Best-effort device extraction from the full chat.
+
+    This is used as a fallback for ticket metadata so the Support Portal
+    still sees a device even if the final escalation messages don't mention it.
+    """
+    for msg in reversed(messages):
+        if msg.get("role") != "user":
+            continue
+        d = extract_device_type(msg.get("content", ""))
+        if d:
+            return d
+    return ""
+
 # -----------------------------
 # Initialize state
 # -----------------------------
@@ -192,6 +211,8 @@ def load_all_components():
     return coll, embedder, tokenizer, model
 
 coll, embedder, tokenizer, model = load_all_components()
+
+init_db()
 
 # -----------------------------
 # Chat interface
@@ -316,14 +337,37 @@ if q:
                 bot_reply = f"To create a support ticket, {missing_q}"
             else:
                 # All info collected - create ticket
+                # Ensure we have a best-effort device for metadata
+                device_for_ticket = ticket_slots.get("device") or _infer_device_from_history(
+                    st.session_state.messages
+                )
+                ticket_slots["device"] = device_for_ticket
+
                 ticket = create_ticket(
                     name=ticket_slots["name"],
                     email=ticket_slots["email"],
-                    device=ticket_slots.get("device"),
+                    device=device_for_ticket,
                     issue=ticket_slots.get("issue"),
                     chat_history=st.session_state.messages.copy(),
                     metadata={"failed_attempts": st.session_state.get("failed_attempts", 0)}
                 )
+
+                # Mirror ticket into SQLite for the new Support Portal
+                session = get_session()
+                try:
+                    db_module.create_ticket(
+                        session=session,
+                        ticket_id=ticket["ticket_id"],
+                        chat_history_json=json.dumps(st.session_state.messages),
+                        user_name=ticket_slots["name"],
+                        user_email=ticket_slots["email"],
+                        device_type=device_for_ticket,
+                        issue_summary=ticket_slots.get("issue"),
+                        intent=ticket_slots.get("intent"),
+                        escalated_by_bot=True,
+                    )
+                finally:
+                    session.close()
                 
                 bot_reply = f"✅ Support ticket created! Your ticket ID is **{ticket['ticket_id']}**. Our support team will contact you at {ticket_slots['email']} within 24 hours."
                 st.session_state.ticket_state = None
@@ -392,7 +436,8 @@ if q:
             st.session_state.ticket_state = "collecting"
             st.session_state["ticket_slots"] = {
                 "device": slots.get("device_type"),
-                "issue": slots.get("issue", "")
+                "issue": slots.get("issue", ""),
+                "intent": intent,
             }
             bot_reply = "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
             thinking.empty()

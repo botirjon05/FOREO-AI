@@ -238,31 +238,38 @@ def extract_email(query: str) -> Optional[str]:
 
 def extract_name(query: str) -> Optional[str]:
     """Extract name from query (accepts both uppercase and lowercase names)"""
-    words = query.strip().split()
-    if not words:
+    tokens = query.strip().replace(",", " ").split()
+    if not tokens:
         return None
     
-    # Filter out common non-name words
     non_name_words = {"my", "name", "is", "i'm", "im", "call", "me", "the"}
-    words = [w for w in words if w.lower() not in non_name_words]
+    cleaned = []
+    for token in tokens:
+        stripped = token.strip().strip(".")
+        lower = stripped.lower()
+        if not stripped:
+            continue
+        if lower in non_name_words:
+            continue
+        if "@" in stripped:
+            continue
+        if re.search(r"\d", stripped):
+            continue
+        cleaned.append(stripped)
     
-    if not words:
+    if not cleaned:
         return None
     
-    if len(words) >= 2:
-        # Take first two words as name (capitalize them)
-        first = words[0].capitalize()
-        second = words[1].capitalize()
-        # Check if they look like names (not too short, not all caps acronyms)
+    if len(cleaned) >= 2:
+        first = cleaned[0].capitalize()
+        second = cleaned[1].capitalize()
         if len(first) > 1 and len(second) > 1:
             if not (first.isupper() and second.isupper() and len(first) <= 3 and len(second) <= 3):
                 return f"{first} {second}"
-    elif len(words) == 1:
-        # Single word name
-        original = words[0]
+    elif len(cleaned) == 1:
+        original = cleaned[0]
         name = original.capitalize()
         if len(name) > 1:
-            # Don't accept very short all-caps (likely acronyms like "AB", "USA")
             if not (original.isupper() and len(original) <= 3):
                 return name
     

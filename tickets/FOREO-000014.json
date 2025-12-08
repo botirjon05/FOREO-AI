@@ -1,0 +1,66 @@
+{
+  "ticket_id": "FOREO-000014",
+  "created_at": "2025-12-03T03:31:05.295266",
+  "customer": {
+    "name": "Bekha",
+    "email": "bekha@gmail.com"
+  },
+  "issue_details": {
+    "device": "BEAR",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "an you connect me with a human agent about my BEAR device? It’s still not working after troubleshooting."
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, What specific issue are you experiencing?"
+    },
+    {
+      "role": "user",
+      "content": "can you connect me with a human agent about my BEAR device? It’s still not working after troubleshooting."
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, What specific issue are you experiencing?"
+    },
+    {
+      "role": "user",
+      "content": "charging"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are general troubleshooting steps for your BEAR:\n\n1. Fully charge the device for 1 hour\n2. Clean the device according to instructions\n3. Check for any visible damage to the device\n4. Ensure you're following the proper operating instructions\n5. If issues persist, please contact customer support at foreo.com/support"
+    },
+    {
+      "role": "user",
+      "content": "I want to connect with support"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "bekha"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "bekha@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}

@@ -55,6 +55,11 @@ An intelligent customer support chatbot for FOREO products that combines Retriev
    - `create_vectorstore.py`: Creates ChromaDB vector store
    - `clean_faqs.py`: Cleans and validates FAQ data
 
+6. **`support_portal.py`**: Internal Support Portal (Sprint 6)
+   - Streamlit dashboard for agents
+   - Ticket list, filters, details, and status updates
+   - Stores internal notes and syncs with chatbot DB
+
 ## 📦 Installation
 
 ### Prerequisites
@@ -294,6 +299,7 @@ United States, United Kingdom, Canada, Australia, Sweden, Germany, France, Italy
 ```
 FOREO AI/
 ├── app.py                      # Main Streamlit application
+├── support_portal.py           # Agent-facing dashboard
 ├── rag_gemma.py               # RAG pipeline core
 ├── intent_detection.py        # Intent classification & slot extraction
 ├── troubleshooting.py         # Troubleshooting response templates
@@ -303,6 +309,8 @@ FOREO AI/
 ├── evaluate_rag.py            # Evaluation script
 ├── requirements.txt          # Python dependencies
 ├── README.md                  # This file
+├── foreo_support.db           # SQLite DB (auto-created)
+├── db.py                      # SQLAlchemy models for tickets
 ├── data/
 │   ├── cleaned_faqs.jsonl    # Cleaned FAQ data
 │   └── faqs_for_embedding.jsonl # Processed data
@@ -372,3 +380,11 @@ All Sprint 4 acceptance criteria have been met:
 - ✅ Integration with RAG pipeline
 - ✅ Session memory across conversation turns
 - ✅ Ready for evaluation (>85% accuracy target)
+
+## 🚨 Sprint 6: Support Portal & Ticket Management
+
+- ✅ SQLite ticket store shared between chatbot (`app.py`) and agents
+- ✅ Streamlit Support Portal (`support_portal.py`) with filters + details pane
+- ✅ Status transitions (open → in_progress → resolved)
+- ✅ Internal notes per ticket for agent collaboration
+- 🔜 Lightweight auth layer (code scaffolded for quick add-on)

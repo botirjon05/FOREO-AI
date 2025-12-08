@@ -1,0 +1,50 @@
+{
+  "ticket_id": "FOREO-000012",
+  "created_at": "2025-12-03T03:26:34.289105",
+  "customer": {
+    "name": "Jack",
+    "email": "brown@gmail.com"
+  },
+  "issue_details": {
+    "device": "ISSA",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "How can I properly clean my ISSA toothbrush after each use?"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to clean your ISSA:\n\n1. Rinse the device thoroughly with warm water after each use\n2. Use FOREO Silicone Cleaning Spray for thorough sanitization\n3. Wash brush surfaces with mild soap and water\n4. Pat dry with a lint-free cloth or let air dry completely\n5. Ensure all surfaces are completely dry before charging\n\nKeep your device clean for optimal performance!"
+    },
+    {
+      "role": "user",
+      "content": "so can we talk more about this with customer support?"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "Jack"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "brown@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}
