@@ -21,9 +21,29 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 # SQLite DB file in project root
 DB_PATH = Path(__file__).parent / "foreo_support.db"
+# Use absolute path for SQLite to avoid permission issues
+DB_PATH = DB_PATH.resolve()
 DB_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DB_URL, echo=False, future=True)
+# Ensure database file is writable
+import os
+if DB_PATH.exists():
+    # Make sure the file is writable
+    try:
+        os.chmod(DB_PATH, 0o644)
+    except Exception:
+        pass  # Ignore if we can't change permissions
+
+# SQLite connection args: allow multi-threaded access and ensure writes work
+engine = create_engine(
+    DB_URL, 
+    echo=False, 
+    future=True, 
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 20.0  # Wait up to 20 seconds for locks to clear
+    }
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 Base = declarative_base()
@@ -72,6 +92,13 @@ class TicketNote(Base):
 
 def init_db() -> None:
     """Create tables if they don't exist."""
+    import os
+    # Ensure database directory and file are writable
+    if DB_PATH.exists():
+        try:
+            os.chmod(DB_PATH, 0o644)
+        except Exception:
+            pass  # Ignore permission errors if we can't change them
     Base.metadata.create_all(bind=engine)
 
 # -------------------------

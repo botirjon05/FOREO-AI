@@ -1,0 +1,98 @@
+{
+  "ticket_id": "FOREO-000001",
+  "created_at": "2025-12-22T22:57:07.793652",
+  "customer": {
+    "name": "Bek",
+    "email": "bekha@gmail.com"
+  },
+  "issue_details": {
+    "device": "",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋 Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "hi what payment methods are available?"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO accepts the following forms of payment for online purchases: For delivery to European Union countries: Visa, Mastercard / Eurocard For delivery outside the European Union: Major credit cards including Visa, Mastercard, American Express, Diner’s Club, Discovery. As soon as your purchase has been verified, an order confirmation will be emailed to you."
+    },
+    {
+      "role": "user",
+      "content": "nice how long it takes to deliver a producT?"
+    },
+    {
+      "role": "assistant",
+      "content": "Once your order is placed, it will be shipped within 1 working day. Delivery will generally take 3 to 5 working days, depending on location. You can always check the status of your order by logging in to your account."
+    },
+    {
+      "role": "user",
+      "content": "what is the warranty period in foreo devices?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "Kazakhstan"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO warrants this device for a period of 2 years (except in countries where national law requires a longer minimum warranty) after the original date of purchase against defects due to faulty workmanship or materials arising from Normal Use of the device. The warranty covers working parts that affect the function of the device. *Warranty does not apply to play range, LUNA fofo, or devices provided at a special price as part of the 'Review Your Device' campaign! It does NOT cover cosmetic deterioration caused by fair wear and tear, or damage caused by accident, misuse or neglect. Any attempt to open or take apart the device (or its accessories) will void the warranty. If you discover a defect and notify FOREO during the warranty period, FOREO will, at its discretion, replace the device free of charge."
+    },
+    {
+      "role": "user",
+      "content": "nice, how can I track my order?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "Sweden"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO uses DHL/UPS for most deliveries Please note that although we do ship worldwide, some orders are subject to additional customs inspections or duties upon delivery. Regrettably, we cannot deliver to P.O. boxes."
+    },
+    {
+      "role": "user",
+      "content": "how can see the status of my order?"
+    },
+    {
+      "role": "assistant",
+      "content": "Your account will show that your order is “completed” once your order is confirmed and verified. When the order is shipped, you will be emailed a tracking number that you can use to track your package on the website of the shipping company."
+    },
+    {
+      "role": "user",
+      "content": "can I connect with support?"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "bek"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "bekha@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}
