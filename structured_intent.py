@@ -1,34 +1,32 @@
 import re
 
 def detect_intent(question: str) -> str:
-    q = (question or "").lower().strip()
+    q = (question or "").lower()
 
-    # ---- HIGH PRIORITY: compare ----
-    if any(k in q for k in ["compare", "vs", "versus", "difference", "delta"]):
-        return "compare"
+    def has_word(*words: str) -> bool:
+        return any(re.search(rf"\b{re.escape(w)}\b", q) for w in words)
 
-    # ---- group ranking: top/bottom by ----
-    if ("by" in q) and any(k in q for k in ["top", "most", "best", "highest", "max"]):
-        return "group_top"
-    if ("by" in q) and any(k in q for k in ["bottom", "least", "worst", "lowest", "min"]):
-        return "group_bottom"
+    if has_word("top", "most", "best"):
+        return "top"
+    if has_word("bottom", "least", "worst"):
+        return "bottom"
 
-    # ---- aggregations ----
-    if any(k in q for k in ["sum", "total"]):
-        return "sum"
-    if any(k in q for k in ["average", "avg", "mean"]):
-        return "avg"
-    if any(k in q for k in ["highest", "lowest", "maximum", "minimum", "max", "min"]):
+    if has_word("highest", "lowest", "maximum", "minimum", "max", "min"):
         return "extreme"
-    if any(k in q for k in ["count", "how many"]):
+
+    if has_word("average", "mean"):
+        return "avg"
+
+    if has_word("sum", "total"):
+        return "sum"
+
+    if has_word ("count") or "how many" in q:
         return "count"
 
-    # ---- filter / show rows ----
-    if any(k in q for k in ["show", "list", "rows", "filter", "where"]):
+    if has_word("comapre", "vs", "versus", "difference", "between"):
+        return "compare"
+
+    if has_word("show", "list", "rows", "filter", "where"):
         return "filter"
 
-    # ---- describe ONLY if explicitly asked ----
-    if any(k in q for k in ["columns", "variables", "fields", "schema"]):
-        return "describe"
-
-    return "unknown"
+    return "describe"

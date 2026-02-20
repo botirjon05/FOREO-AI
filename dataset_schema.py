@@ -1,71 +1,88 @@
 import pandas as pd
 import re
 
+from sklearn.externals.array_api_extra import nunique
+
+
 def _norm(col: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", str(col).strip().lower()).strip("_")
 
 def infer_schema(df: pd.DataFrame) -> dict:
-    """
-    Returns schema dict keyed by normalized column name.
-    Each entry includes:
-    -original_name
-    -role: numeric | boolean | datetime | categorical | text
-    -stats: min|max for numeric, sample uniques for categorical
-    """
+    df = normalize_dataframe(df)
 
     schema = {}
-    df2 = df.copy()
-    df2.columns = [_norm(c) for c in df2.columns]
+    n = len(df)
 
-    for col in df2.columns:
-        s = df2[col]
-        entry = {
-            "normalized_name": col,
-            "original_name": col,
-            "role": "text",
-        }
-
-        #boolean
-        non_null = s.dropna()
-        if len(non_null) > 0 and non_null.isin([True, False]).all():
-            entry["role"] = "boolean"
-            schema[col] = entry
-            continue
+    for c in df.columns:
+        s = df[c]
 
         #numeric
         if pd.api.types.is_numeric_dtype(s):
-            entry["role"] = "numeric"
-            entry["min"] = float(s.min()) if len(non_null) else None
-            entry["max"] = float(s.max()) if len(non_null) else None
-            schema[col] = entry
+            schema[c] = {"role": "numeric"}
             continue
 
-        #datetime
-        if pd.api.types.is_datetime64_any_dtype(s):
-            entry["role"] = "datetime"
-            schema[col] = entry
-            continue
+        #datetime detection (try parse)
+        if s.dtype == "object":
+            dt = pd.to_datetime(s, errors="coerce", utc=False)
+            if dt.notna().mean() >= 0.7:
+                schema[c] = {"role": "datetime"}
+                continue
 
-        #datetime: string that looks like YYYY-MM-DD
-        if s.astype(str).str.match(r"^\d{4} - \d{2} - \d{2}$").mean() > 0.6:
-            entry["role"] = "datetime"
-            schema[col] = entry
-            continue
-
-        #categorical heuristic
-        nunique = non_null.nunique()
-        if nunique > 0 and nunique <= min(50, max(5, int(len(non_null) * 0.3))):
-            entry["role"] = "categorical"
-            entry["unique_sample"] = list(non_null.unique())[:20]
-            schema[col] = entry
-            continue
-        schema[col] = entry
-
+        #categorical vs text
+        nunique = s.nunique(dropna=True)
+        if n > 0 and nunique <= max(30, int(0.2 * n)):
+            schema[c] = {"role": "categorical"}
+        else:
+            schema[c] = {"role": "text"}
     return schema
 
-def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    df2 = df.copy()
-    df2.columns = [_norm(c) for c in df2.columns]
-    return df2
+import pandas as pd
+import re
+
+def normalize_dataframe(df_raw: pd.DataFrame) -> pd.DataFrame:
+    df = df_raw.copy()
+
+    # 1) Normalize column names
+    df.columns = [
+        re.sub(r"\s+", "_", str(c).strip().lower())
+        for c in df.columns
+    ]
+
+    # 2) Trim strings
+    for c in df.columns:
+        if pd.api.types.is_object_dtype(df[c]):
+            df[c] = df[c].astype(str).str.strip().replace({"nan": None, "None": None, "": None})
+
+    # 3) Convert date-like columns if possible (optional)
+    # (You can keep your existing date logic if you already have it)
+
+    # 4) Strong numeric coercion (IMPORTANT FIX)
+    # Convert columns that are "mostly numeric among non-null"
+    for c in df.columns:
+        s = df[c]
+
+        # Skip if it's already numeric
+        if pd.api.types.is_numeric_dtype(s):
+            continue
+
+        # Try to parse numeric values from strings
+        # - handle comma decimals "5,0" -> "5.0"
+        # - remove % if present "12%" -> "12"
+        s_as_str = s.astype(str).str.strip()
+        s_as_str = s_as_str.str.replace(",", ".", regex=False)
+        s_as_str = s_as_str.str.replace("%", "", regex=False)
+
+        num = pd.to_numeric(s_as_str, errors="coerce")
+
+        non_null = s.notna().sum()
+        numeric_non_null = num.notna().sum()
+
+        # Only decide based on non-null rows
+        if non_null > 0 and (numeric_non_null / non_null) >= 0.6:
+            df[c] = num
+
+    return df
+
+
 
 

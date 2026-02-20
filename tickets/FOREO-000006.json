@@ -1,0 +1,338 @@
+{
+  "ticket_id": "FOREO-000006",
+  "created_at": "2026-02-14T22:48:00.071611",
+  "customer": {
+    "name": "Botirjon",
+    "email": "b@gmail.com"
+  },
+  "issue_details": {
+    "device": "LUNA 4",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋 Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+    },
+    {
+      "role": "user",
+      "content": "How can i clean my device"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which FOREO device would you like cleaning instructions for?"
+    },
+    {
+      "role": "user",
+      "content": "Luna"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to clean your LUNA:\n\n1. Rinse the device thoroughly with warm water after each use\n2. Use FOREO Silicone Cleaning Spray for thorough sanitization\n3. Wash brush surfaces with mild soap and water\n4. Pat dry with a lint-free cloth or let air dry completely\n5. Ensure all surfaces are completely dry before charging\n\nKeep your device clean for optimal performance!"
+    },
+    {
+      "role": "user",
+      "content": "can you explain me this dataset ?"
+    },
+    {
+      "role": "assistant",
+      "content": "This table represents a dataset of various details related to online content, including quality scores, URLs, creators, teams, sources, owners, platforms, types of placements, primary communications, publication dates, products, and unique identifiers for each piece of content.\n\nDetected columns:\n- quality_score (numeric)\n- url_to_content_or_screenshot (text)\n- creator (text)\n- team (categorical)\n- content_source_of_contact (categorical)\n- owner (categorical)\n- platform (categorical)\n- placement_type (categorical)\n- primary_communication (categorical)\n- publish_date (text)\n- product (text)\n- content_id (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "describe the quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "what is the warranty period ?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "sweden"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO warrants this device for a period of 2 years (except in countries where national law requires a longer minimum warranty) after the original date of purchase against defects due to faulty workmanship or materials arising from Normal Use of the device. The warranty covers working parts that affect the function of the device. *Warranty does not apply to play range, LUNA fofo, or devices provided at a special price as part of the 'Review Your Device' campaign! It does NOT cover cosmetic deterioration caused by fair wear and tear, or damage caused by accident, misuse or neglect. Any attempt to open or take apart the device (or its accessories) will void the warranty. If you discover a defect and notify FOREO during the warranty period, FOREO will, at its discretion, replace the device free of charge."
+    },
+    {
+      "role": "user",
+      "content": "what columns do i have"
+    },
+    {
+      "role": "assistant",
+      "content": "Detected columns:\n- quality_score (numeric)\n- url_to_content_or_screenshot (text)\n- creator (text)\n- team (categorical)\n- content_source_of_contact (categorical)\n- owner (categorical)\n- platform (categorical)\n- placement_type (categorical)\n- primary_communication (categorical)\n- publish_date (text)\n- product (text)\n- content_id (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "who is lionel messi"
+    },
+    {
+      "role": "assistant",
+      "content": "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+    },
+    {
+      "role": "user",
+      "content": "my device is not charging"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which FOREO device are you asking about?"
+    },
+    {
+      "role": "user",
+      "content": "Bear"
+    },
+    {
+      "role": "assistant",
+      "content": "Here are general troubleshooting steps for your BEAR:\n\n1. Fully charge the device for 1 hour\n2. Clean the device according to instructions\n3. Check for any visible damage to the device\n4. Ensure you're following the proper operating instructions\n5. If issues persist, please contact customer support at foreo.com/support"
+    },
+    {
+      "role": "user",
+      "content": "detected columns"
+    },
+    {
+      "role": "assistant",
+      "content": "Detected columns:\n- date (datetime)\n- promotion_name (categorical)\n- discount_percent (numeric)\n- is_weekend (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "detected columns"
+    },
+    {
+      "role": "assistant",
+      "content": "Detected columns:\n- quality_score (numeric)\n- url_to_content_or_screenshot (text)\n- creator (text)\n- team (categorical)\n- content_source_of_contact (categorical)\n- owner (categorical)\n- platform (categorical)\n- placement_type (categorical)\n- primary_communication (categorical)\n- publish_date (text)\n- product (text)\n- content_id (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "tell me a joke"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "highest discount_percent"
+    },
+    {
+      "role": "assistant",
+      "content": "Highest `quality_score` is 5.0.\n\n```text\nquality_score                                                                 5.0\nurl_to_content_or_screenshot    https://drive.google.com/file/d/1k2llyf5k9ikvz...\ncreator                                                                      Gala\nteam                                                              PR Germany team\ncontent_source_of_contact                                               PR Agency\nowner                                                          Anna-Maria Kroplin\nplatform                                                                       TV\nplacement_type                                                            TV Show\nprimary_communication                   Education - Benefits from using a product\npublish_date                                                            2/22/2025\nproduct                                                                   FAQ 202\ncontent_id                                                               259197.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "what columns do i have"
+    },
+    {
+      "role": "assistant",
+      "content": "Detected columns:\n- quality_score (numeric)\n- url_to_content_or_screenshot (text)\n- creator (text)\n- team (categorical)\n- content_source_of_contact (categorical)\n- owner (categorical)\n- platform (categorical)\n- placement_type (categorical)\n- primary_communication (categorical)\n- publish_date (text)\n- product (text)\n- content_id (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "highest quality_score "
+    },
+    {
+      "role": "assistant",
+      "content": "Highest `quality_score` is 5.0.\n\n```text\nquality_score                                                                 5.0\nurl_to_content_or_screenshot    https://drive.google.com/file/d/1k2llyf5k9ikvz...\ncreator                                                                      Gala\nteam                                                              PR Germany team\ncontent_source_of_contact                                               PR Agency\nowner                                                          Anna-Maria Kroplin\nplatform                                                                       TV\nplacement_type                                                            TV Show\nprimary_communication                   Education - Benefits from using a product\npublish_date                                                            2/22/2025\nproduct                                                                   FAQ 202\ncontent_id                                                               259197.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "average quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "The average quality score is approximately 3.7 out of a possible six points.\n\nAverage of `quality_score`: 3.6666666666666665"
+    },
+    {
+      "role": "user",
+      "content": "sum quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "The sum of the 'quality_score' is 11.0, indicating that a total of eleven items were rated based on their quality with scores ranging from 0 to 10.\n\nSum of `quality_score`: 11.0"
+    },
+    {
+      "role": "user",
+      "content": "lowest quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "Lowest `quality_score` is 2.0.\n\n```text\nquality_score                                                                 2.0\nurl_to_content_or_screenshot    https://drive.google.com/file/d/17rSivVCk61HPh...\ncreator                                                        Blikk Nok Magazine\nteam                                                              PR Hungary team\ncontent_source_of_contact                                               PR Agency\nowner                                                            Sasha Lasiewicki\nplatform                                                                    Print\nplacement_type                                                          PR: story\nprimary_communication                                   Skincare ritual essential\npublish_date                                                            8/19/2025\nproduct                                                               BEAR 2 body\ncontent_id                                                               269526.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "top creator by quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "Top 'creator' by 'quality_score' : **Gala** = 5.0\n\n```text\ncreator\nGala                    5.0\nLifestyle Today Show    4.0\nBlikk Nok Magazine      2.0\n24sata/miss7            0.0\nVogue.co.uk             0.0\ncosmopolitan.com/it     0.0\nbezzia.com              0.0\nZenski Recenziraj       0.0\nWomen's Shine           0.0\nWho What Wear           0.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "bottom product by quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "Bottom 'product' by 'quality_score' : **2/21/2025** = 0.0\n\n```text\nproduct\n2/21/2025                 0.0\nIRIS Hydrogel Eye Mask    0.0\nKIWI                      0.0\nKIWI derma                0.0\nLUNA 3                    0.0\nLUNA 4                    0.0\nLUNA 4 go                 0.0\nLUNA 4 hair               0.0\nLUNA 4 mini               0.0\nLUNA 4 plus               0.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "top platform by quality_score"
+    },
+    {
+      "role": "assistant",
+      "content": "Top 'platform' by 'quality_score' : **TV** = 9.0\n\n```text\nplatform\nTV                  9.0\nPrint               2.0\nBlog                0.0\nOnline Publisher    0.0\nRadio               0.0\nVanja Gudelj        0.0\nNaN                 0.0\n```"
+    },
+    {
+      "role": "user",
+      "content": "highest quality_score on TV"
+    },
+    {
+      "role": "assistant",
+      "content": "I don't have enough information in the uploaded documents to determine the highest quality score for a TV content. The provided context only includes data for online publisher and print media contents, not TV."
+    },
+    {
+      "role": "user",
+      "content": "highest quality_score on TikTok"
+    },
+    {
+      "role": "assistant",
+      "content": "The highest engagement rate on TikTok is observed on October 4, 2025, with an engagement rate of 0.63."
+    },
+    {
+      "role": "user",
+      "content": "highest quality_score on Tik Tok"
+    },
+    {
+      "role": "assistant",
+      "content": "Based on the provided data, the highest engagement rate (quality score) on TikTok is observed on October 4, 2025, with a score of 0.6. The exact value can be calculated by dividing the number of engaged sessions by the total number of sessions, which results in 180 / 301 = 0.6 for the date October 4, 2025."
+    },
+    {
+      "role": "user",
+      "content": "which creator performs best ?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "which creator is top "
+    },
+    {
+      "role": "assistant",
+      "content": "Based on the provided context, it's not possible to determine a \"creator\" as the information does not contain data about creators. The context only includes details about websites (Harper's Bazaar UK and harpersbazaar.com/it, cosmopolitan.com/it, and The London Standard), teams (PR UK team, PR Italy team), publishers (Online Publisher), and specific articles or products (e.g., PEACH 2 Pro Max, maschera LED più venduta su Amazon)."
+    },
+    {
+      "role": "user",
+      "content": "which creator performs best"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "which platform performs worst"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "detected columns"
+    },
+    {
+      "role": "assistant",
+      "content": "Detected columns:\n- date (datetime)\n- source (categorical)\n- medium (categorical)\n- new_users (numeric)\n- sessions (numeric)\n- engaged_sessions (numeric)\n- engagement_rate (numeric)\n- transactions (numeric)\n- total_revenue (numeric)"
+    },
+    {
+      "role": "user",
+      "content": "tell me a joke"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "How do i clean my luna 4 "
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to clean your LUNA 4:\n\n1. Rinse the device thoroughly with warm water after each use\n2. Use FOREO Silicone Cleaning Spray for thorough sanitization\n3. Wash brush surfaces with mild soap and water\n4. Pat dry with a lint-free cloth or let air dry completely\n5. Ensure all surfaces are completely dry before charging\n\nKeep your device clean for optimal performance!"
+    },
+    {
+      "role": "user",
+      "content": "what is the warranty in germany "
+    },
+    {
+      "role": "assistant",
+      "content": "To activate your 2-Year Limited Warranty (Spain, Portugal, Sweden: 3-year warranty), register the number provided on the FOREO Magnetic Scratch Card under the REGISTER PRODUCT section in your FOREO account ."
+    },
+    {
+      "role": "user",
+      "content": "how long does shipping take in "
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "France"
+    },
+    {
+      "role": "assistant",
+      "content": "How much sales tax will I need to pay? Prices on foreo.com include VAT for all deliveries to the USA, Australia, EU countries, United Kingdom, Turkey and Mexico. For shipments to other countries, the customer is responsible for the payment of any eventual VAT or GST as required by each country’s regulations."
+    },
+    {
+      "role": "user",
+      "content": "how long does shipping take in France"
+    },
+    {
+      "role": "assistant",
+      "content": "Once your order is placed, it will be shipped within 1 working day. Delivery will generally take 3 to 5 working days, depending on location. You can always check the status of your order by logging in to your account."
+    },
+    {
+      "role": "user",
+      "content": "I want to speak to support"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "Botirjon"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "b@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}

@@ -1,0 +1,118 @@
+{
+  "ticket_id": "FOREO-000005",
+  "created_at": "2026-02-09T13:24:02.696756",
+  "customer": {
+    "name": "Jack",
+    "email": "jack@gmail.com"
+  },
+  "issue_details": {
+    "device": "UFO",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋 Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "hi"
+    },
+    {
+      "role": "assistant",
+      "content": "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+    },
+    {
+      "role": "user",
+      "content": "what can you do ?"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "help"
+    },
+    {
+      "role": "assistant",
+      "content": "Make sure that you’re trying to log in with the correct email address. In case you’re trying to log in with a different email than the one you registered with, you won’t be able to log in. In case you logged in with your AppleID, you will only be able to log in with it in the future. In case you’re trying to log in with your personal email, it won’t be accepted. If you’re still not able to log in, feel free to contact us by clicking on this link ."
+    },
+    {
+      "role": "user",
+      "content": "support ticket"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "no"
+    },
+    {
+      "role": "assistant",
+      "content": "No problem! How else can I help you today?"
+    },
+    {
+      "role": "assistant",
+      "content": "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+    },
+    {
+      "role": "user",
+      "content": "how do I clean a foreo luna device?"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to clean your LUNA:\n\n1. Rinse the device thoroughly with warm water after each use\n2. Use FOREO Silicone Cleaning Spray for thorough sanitization\n3. Wash brush surfaces with mild soap and water\n4. Pat dry with a lint-free cloth or let air dry completely\n5. Ensure all surfaces are completely dry before charging\n\nKeep your device clean for optimal performance!"
+    },
+    {
+      "role": "user",
+      "content": "my device won't turn on. what should I do ?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which FOREO device are you having issues with? (e.g., LUNA 4, BEAR, UFO)"
+    },
+    {
+      "role": "user",
+      "content": "ufo"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to troubleshoot power issues with your UFO:\n\n1. Ensure the device has been charged for at least 1 hour\n2. Check if the travel lock is enabled (for 3-button devices)\n3. To unlock: Hold the + and - buttons simultaneously for 5 seconds\n4. When unlocked, the LED will light up to confirm\n5. Try pressing the power button firmly once\n\nIf your device still won't turn on, the device may be faulty. Please submit a warranty claim on foreo.com."
+    },
+    {
+      "role": "user",
+      "content": "how long is warranty in germany"
+    },
+    {
+      "role": "assistant",
+      "content": "To activate your 2-Year Limited Warranty (Spain, Portugal, Sweden: 3-year warranty), register the number provided on the FOREO Magnetic Scratch Card under the REGISTER PRODUCT section in your FOREO account ."
+    },
+    {
+      "role": "user",
+      "content": "I need to speak with support"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "jack"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "jack@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}

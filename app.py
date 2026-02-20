@@ -2,6 +2,8 @@
 # app.py — Streamlit Chat UI for RAG Gemma chatbot (polished FOREO styling)
 
 from dotenv import load_dotenv
+from streamlit import query_params
+
 load_dotenv()
 
 import os
@@ -184,6 +186,31 @@ def paraphrase_with_gemma_api(text: str) -> str:
     except Exception:
         return text
 
+def _looks_like_structured_question(q: str) -> bool:
+    q = (q or "").lower()
+
+    # Questions about columns/schema
+    if any(k in q for k in [
+        "column", "columns", "schema", "fields", "header", "headers",
+        "what columns", "show columns", "list columns"
+    ]):
+        return True
+
+    # Analytics/aggregation keywords
+    if any(k in q for k in [
+        "highest", "lowest", "max", "min", "average", "mean", "sum", "total",
+        "count", "rows", "top", "bottom", "compare", "correlation", "trend"
+    ]):
+        return True
+
+    # Common “data” words
+    if any(k in q for k in [
+        "dataset", "csv", "excel", "table", "dataframe", "report"
+    ]):
+        return True
+
+    return False
+
 def _infer_device_from_history(messages) -> str:
     """Infer device type from the user's last few messages (if mentioned)."""
     for msg in reversed(messages):
@@ -194,22 +221,25 @@ def _infer_device_from_history(messages) -> str:
             return d
     return ""
 
+
 def try_answer_csv(query: str, file_path: str):
     """Attempt to answer the query using an uploaded structured CSV or Excel file."""
     # Use cached DataFrame if available
+    cached_path = st.session_state.get("uploaded_df_path")
     df = st.session_state.get("uploaded_df")
-    if df is None:
-        # Read the file into a DataFrame
+
+    if df is None or cached_path != file_path:
         try:
-            if file_path.lower().endswith((".csv", ".txt")):
-                df = pd.read_csv(file_path)
-            elif file_path.lower().endswith((".xls", ".xlsx")):
-                df = pd.read_excel(file_path)
-            else:
-                return None, None  # Unsupported file type for structured QA
+            df_raw = load_structured_file_safely(file_path)
+            df = normalize_dataframe(df_raw)
             st.session_state["uploaded_df"] = df
+            st.session_state["uploaded_df_path"] = file_path
+
+            schema = infer_schema(df)
+            st.session_state["uploaded_schema"] = schema
         except Exception:
             return None, None
+
 
     # Use existing inferred schema if available; otherwise infer new schema
     schema = st.session_state.get("uploaded_schema")
@@ -225,6 +255,9 @@ def try_answer_csv(query: str, file_path: str):
         df_normalized = normalize_dataframe(df)
     except Exception:
         df_normalized = df
+
+    if not _looks_like_structured_question(query):
+        return None, None
 
     # Use the structured data engine to get an answer
     try:
@@ -261,6 +294,58 @@ def try_answer_csv(query: str, file_path: str):
     return result, evidence
 
 
+def load_structured_file_safely(file_path: str) -> pd.DataFrame:
+    """
+    Loads CSV/XLSX robustly.
+    Tries multiple header rows and selects the one with the fewest Unnamed columns.
+    Also drops completely empty columns.
+    """
+    ext = file_path.lower().split(".")[-1]
+
+    def score_columns(cols) -> int:
+        # lower score = better
+        unnamed = sum(str(c).lower().startswith("unnamed") for c in cols)
+        empty = sum(str(c).strip() == "" for c in cols)
+        return unnamed * 10 + empty
+
+    def post_clean(df: pd.DataFrame) -> pd.DataFrame:
+        # drop fully empty columns
+        df = df.dropna(axis=1, how="all")
+        # normalize column names
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+
+    candidates = []
+
+    if ext == "csv":
+        for h in [0, 1, 2, 3]:
+            try:
+                df = pd.read_csv(file_path, header=h)
+                df = post_clean(df)
+                candidates.append((score_columns(df.columns), df))
+            except Exception:
+                pass
+
+    elif ext in ("xls", "xlsx"):
+        for h in [0, 1, 2, 3]:
+            try:
+                df = pd.read_excel(file_path, header=h)
+                df = post_clean(df)
+                candidates.append((score_columns(df.columns), df))
+            except Exception:
+                pass
+    else:
+        raise ValueError(f"Unsupported structured file type: {ext}")
+
+    if not candidates:
+        raise ValueError("Could not load structured file with any header row.")
+
+    # pick best candidate (lowest score)
+    candidates.sort(key=lambda x: x[0])
+    return candidates[0][1]
+
+
+
 def _make_dataset_id(company_id: str, filename: str) -> str:
     """Stable-ish id per company + filename (simple and predictable)"""
     safe = re.sub(r"[^a-zA-Z0-9_.-]+", "_", filename.strip())
@@ -285,6 +370,7 @@ def set_active_dataset(dataset_id: str):
         st.session_state["latest_structured_file"] = ds.get("path")
         st.session_state["uploaded_df"] = ds.get("df")
         st.session_state["uploaded_schema"] = ds.get("schema")
+        st.session_state["uploaded_df_path"] = ds.get("path")
 
 # -----------------------------
 # Initialize Session State
@@ -421,15 +507,18 @@ if uploaded_file is not None:
     # If structured => load df + schema
     if uploaded_file.name.lower().endswith((".csv", ".xlsx")):
         try:
-            if uploaded_file.name.lower().endswith(".csv"):
-                df = pd.read_csv(file_path)
-            else:
-                df = pd.read_excel(file_path)
+            df_raw = load_structured_file_safely(file_path)
 
-            schema = infer_schema(df)
+            # ✅ normalize BEFORE schema
+            df_norm = normalize_dataframe(df_raw)
+
+            for col in df_norm.columns:
+                if col.lower().replace(" ", "_") in ("quality_score", "score", "rating"):
+                    df_norm[col] = pd.to_numeric(df_norm[col], errors = "coerce")
+            schema = infer_schema(df_norm)
 
             ds_record["type"] = "structured"
-            ds_record["df"] = df
+            ds_record["df"] = df_norm
             ds_record["schema"] = schema
 
         except Exception as e:
@@ -437,14 +526,12 @@ if uploaded_file is not None:
 
     # Store into registry
     st.session_state["datasets"][dataset_id] = ds_record
+    set_active_dataset(dataset_id)
 
     if ds_record["type"] == "structured":
         st.session_state["latest_structured_file"] = file_path
     else:
         st.session_state["latest_unstructured_file"] = None
-
-
-
 
 
 # If a CSV/Excel is uploaded, show indexing and toggle options
@@ -588,6 +675,9 @@ else:
             d1 = st.sidebar.text_input("Date 1 (YYYY-MM-DD)", value="", key=f"d1_{active_id}")
             d2 = st.sidebar.text_input("Date 2 (YYYY-MM-DD)", value="", key=f"d2_{active_id}")
 
+        if "Compare two dates" in st.session_state[ana_key] and numeric_cols and target_metric is None:
+            target_metric = st.sidebar.selectbox("Metric for compare", numeric_cols, index=0, key = f"metric_compare_{active_id}")
+
         # Correlation params (numeric vs numeric)
         corr_x, corr_y = None, None
         if "Correlation (numeric vs numeric)" in st.session_state[ana_key]:
@@ -613,22 +703,15 @@ else:
         run = st.sidebar.button("▶ Run analysis", use_container_width=True)
 
         if run:
-            # Build a natural-language query that your existing answer_structured() can consume
-            # This is NOT hardcoded to one dataset; it's a generic query builder.
             selected_vars = st.session_state[var_key]
-            selected_analyses = st.session_state[ana_key]
+            selected_analysis = st.session_state[ana_key]
 
             query_parts = []
 
-            # variables hint (helps the engine pick the right column)
-            if selected_vars:
-                query_parts.append("Variables: " + ", ".join(selected_vars))
-
-            # analysis commands
-            # (each adds a “phrase” the engine already knows how to interpret)
-            for a in selected_analyses:
+            for a in selected_analysis:
                 if a == "Count rows":
                     query_parts.append("count rows")
+
                 elif a == "Show first row":
                     query_parts.append("show first row")
                 elif a == "Highest (max)" and target_metric:
@@ -641,8 +724,15 @@ else:
                     query_parts.append(f"sum {target_metric}")
                 elif a == "Show rows for a date" and date_value:
                     query_parts.append(f"rows for {date_value}")
-                elif a == "Compare two dates" and d1 and d2 and target_metric:
-                    query_parts.append(f"compare {target_metric} for {d1} vs {d2}")
+
+                elif a == "Compare two dates" and d1 and d2:
+                    metric = target_metric
+                    if not metric and selected_vars:
+                        metric = selected_vars[0]
+
+                    if metric:
+                        query_parts.append(f"compare {metric} between {d1} and {d2}")
+
                 elif a == "Correlation (numeric vs numeric)" and corr_x and corr_y:
                     query_parts.append(f"correlation between {corr_x} and {corr_y}")
                 elif a == "Top category by metric" and group_col and target_metric:
@@ -650,16 +740,16 @@ else:
                 elif a == "Bottom category by metric" and group_col and target_metric:
                     query_parts.append(f"bottom {group_col} by {target_metric}")
 
+            if selected_vars:
+                query_parts.append("variables: " + ", ".join(selected_vars))
+
             built_query = " | ".join([p for p in query_parts if p.strip()])
 
             if not built_query.strip():
-                st.sidebar.warning("Pick at least one analysis and required fields (metric/date).")
+                st.sidebar.warning("Pick at least one analysis and required fields (metric/date)")
             else:
-                # Save into session so chat can execute it using the SAME pipeline
                 st.session_state["pending_structured_query"] = built_query
-                st.sidebar.success("Queued ✅ Ask in chat or it will run on next message.")
-    else:
-        st.sidebar.info("Upload a CSV/XLSX to enable analysis controls.")
+                st.sidebar.markdown(f"Queued ✅: {built_query}")
 
 
 # -----------------------------
@@ -812,6 +902,10 @@ if user_query:
             intent = old_intent
         else:
             intent, _ = classify_intent(q)
+            if st.session_state.get("latest_structured_file"):
+                analytics_words = ["highest", "lowest", "average", "sum", "top", "bottom", "compare", "rows", "count"]
+                if any(w in q.lower() for w in analytics_words):
+                    intent = "analytics"
             slots = simple_extract_slots(q)
 
         # Check if user just responded "yes" to create a ticket
@@ -820,8 +914,16 @@ if user_query:
             st.session_state["ticket_just_created"] = False
             should_escalate = False
         else:
-            user_accepts_ticket = any(word in q.lower() for word in ["yes", "yeah", "sure", "okay", "ok", "create ticket", "support ticket"])
-            should_escalate = (intent == "escalation") or user_accepts_ticket
+            q_low = q.lower()
+            def has_word(w: str) -> bool:
+                return re.search(rf"\b{re.escape(w)}\b", q_low) is not None
+
+            user_accepts_ticket = (
+                has_word("yes") or has_word("yeah") or has_word("sure") or has_word("okay") or has_word("ok")
+                or ("create ticket" in q_low)
+                or("support ticket" in q_low)
+            )
+            should_escalate = (intent =="escalation") or user_accepts_ticket
 
         if should_escalate:
             # Begin support ticket collection process
@@ -882,7 +984,7 @@ if user_query:
                     use_hf_api = _get_secret("USE_HF_API", os.getenv("USE_HF_API", "0")) == "1"
                     structured_path = st.session_state.get("latest_structured_file")
 
-                    if use_uploaded and structured_path:
+                    if use_uploaded and structured_path and _looks_like_structured_question(augmented_query):
                         # First try answering from structured file if available
                         result, evidence = try_answer_csv(augmented_query, structured_path)
                         if result is not None and str(result).strip() != "":
