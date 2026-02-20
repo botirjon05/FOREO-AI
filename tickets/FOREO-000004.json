@@ -1,0 +1,154 @@
+{
+  "ticket_id": "FOREO-000004",
+  "created_at": "2026-01-14T01:14:48.963432",
+  "customer": {
+    "name": "John",
+    "email": "john@gmail.com"
+  },
+  "issue_details": {
+    "device": "",
+    "issue": "I dont know | yes | john"
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋 Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "warranty for albania"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "albania"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "albania"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "albania"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "efwf"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "I want to know about warranty in Albania, I live in albania"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "how long is the warranty in kz"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "kz"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "kazaks"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "kazakstan"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO warrants this device for a period of 2 years (except in countries where national law requires a longer minimum warranty) after the original date of purchase against defects due to faulty workmanship or materials arising from Normal Use of the device. The warranty covers working parts that affect the function of the device. *Warranty does not apply to play range, LUNA fofo, or devices provided at a special price as part of the 'Review Your Device' campaign! It does NOT cover cosmetic deterioration caused by fair wear and tear, or damage caused by accident, misuse or neglect. Any attempt to open or take apart the device (or its accessories) will void the warranty. If you discover a defect and notify FOREO during the warranty period, FOREO will, at its discretion, replace the device free of charge."
+    },
+    {
+      "role": "user",
+      "content": "why"
+    },
+    {
+      "role": "assistant",
+      "content": "I can only help with FOREO product questions. Could you ask something about FOREO devices, warranty, orders, or support?"
+    },
+    {
+      "role": "user",
+      "content": "why"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "why"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "I dont know"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm designed to help with FOREO-related questions only. If you'd like, I can connect you with our support team for further assistance. Would you like me to create a support ticket?"
+    },
+    {
+      "role": "user",
+      "content": "yes"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "john"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "john@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 8
+  },
+  "status": "open"
+}

@@ -1,0 +1,74 @@
+{
+  "ticket_id": "FOREO-000002",
+  "created_at": "2025-12-22T23:54:49.137470",
+  "customer": {
+    "name": "Botirjon",
+    "email": "salokhiddinov@gmail.com"
+  },
+  "issue_details": {
+    "device": "LUNA",
+    "issue": ""
+  },
+  "chat_history": [
+    {
+      "role": "assistant",
+      "content": "👋 Hi! I'm your FOREO assistant. Ask me about warranty, cleaning, charging, orders, or account help."
+    },
+    {
+      "role": "user",
+      "content": "what is the warranty period in foreo devices?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which country are you located in?"
+    },
+    {
+      "role": "user",
+      "content": "Sweden"
+    },
+    {
+      "role": "assistant",
+      "content": "FOREO warrants this device for a period of 2 years (except in countries where national law requires a longer minimum warranty) after the original date of purchase against defects due to faulty workmanship or materials arising from Normal Use of the device. The warranty covers working parts that affect the function of the device. *Warranty does not apply to play range, LUNA fofo, or devices provided at a special price as part of the 'Review Your Device' campaign! It does NOT cover cosmetic deterioration caused by fair wear and tear, or damage caused by accident, misuse or neglect. Any attempt to open or take apart the device (or its accessories) will void the warranty. If you discover a defect and notify FOREO during the warranty period, FOREO will, at its discretion, replace the device free of charge."
+    },
+    {
+      "role": "user",
+      "content": "how can I clean my foreo device?"
+    },
+    {
+      "role": "assistant",
+      "content": "To help you better, Which FOREO device would you like cleaning instructions for?"
+    },
+    {
+      "role": "user",
+      "content": "Luna"
+    },
+    {
+      "role": "assistant",
+      "content": "Here's how to clean your LUNA:\n\n1. Rinse the device thoroughly with warm water after each use\n2. Use FOREO Silicone Cleaning Spray for thorough sanitization\n3. Wash brush surfaces with mild soap and water\n4. Pat dry with a lint-free cloth or let air dry completely\n5. Ensure all surfaces are completely dry before charging\n\nKeep your device clean for optimal performance!"
+    },
+    {
+      "role": "user",
+      "content": "can I connect with customer support?"
+    },
+    {
+      "role": "assistant",
+      "content": "I understand you'd like to speak with our support team. To create a support ticket, I'll need a few details. What's your name?"
+    },
+    {
+      "role": "user",
+      "content": "Botirjon"
+    },
+    {
+      "role": "assistant",
+      "content": "To create a support ticket, What's your email address?"
+    },
+    {
+      "role": "user",
+      "content": "salokhiddinov@gmail.com"
+    }
+  ],
+  "metadata": {
+    "failed_attempts": 0
+  },
+  "status": "open"
+}
